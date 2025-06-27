@@ -28,6 +28,12 @@ testcases = [
         "configuration_file": "testdata/testdata_multiple_sheets.xlsx.yml",
         "intended_results_file": "testdata/testdata_multiple_sheets.xlsx.json",
     },
+    {
+        # excel with one sheet containing relative paths
+        "input_file": "testdata/testdata_relative_path.xlsx",
+        "configuration_file": "testdata/testdata_relative_path.xlsx.yml",
+        "intended_results_file": "testdata/testdata_relative_path.xlsx.json",
+    },
 ]
 
 
