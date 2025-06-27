@@ -11,10 +11,23 @@ import metadata_from_tabular
 
 testcases = [
     {
-        "input_file": "testdata/testdata.csv",  # csv with absolute paths
+        # csv with one sheet containing absolute paths and ; separator
+        "input_file": "testdata/testdata.csv",
         "configuration_file": "testdata/testdata.csv.yml",
         "intended_results_file": "testdata/testdata.csv.json",
-    }
+    },
+    {
+        # excel with one sheet containing absolute paths
+        "input_file": "testdata/testdata.xlsx",
+        "configuration_file": "testdata/testdata.xlsx.yml",
+        "intended_results_file": "testdata/testdata.xlsx.json",
+    },
+    {
+        # excel with multiple sheets containing absolute paths
+        "input_file": "testdata/testdata_multiple_sheets.xlsx",
+        "configuration_file": "testdata/testdata_multiple_sheets.xlsx.yml",
+        "intended_results_file": "testdata/testdata_multiple_sheets.xlsx.json",
+    },
 ]
 
 
