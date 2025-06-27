@@ -34,6 +34,22 @@ testcases = [
         "configuration_file": "testdata/testdata_relative_path.xlsx.yml",
         "intended_results_file": "testdata/testdata_relative_path.xlsx.json",
     },
+    {
+        # testcase for blacklisting
+        # excel with one sheet containing absolute paths;
+        # the column 'shape' is blacklisted
+        "input_file": "testdata/testdata.xlsx",
+        "configuration_file": "testdata/testdata.xlsx_blacklisted.yml",
+        "intended_results_file": "testdata/testdata.xlsx_blacklisted.json",
+    },
+    {
+        # testcase for whitelisting
+        # excel with one sheet containing absolute paths;
+        # the columns 'color' and 'shape' are whitelisted
+        "input_file": "testdata/testdata.xlsx",
+        "configuration_file": "testdata/testdata.xlsx_whitelisted.yml",
+        "intended_results_file": "testdata/testdata.xlsx_whitelisted.json",
+    },
 ]
 
 
