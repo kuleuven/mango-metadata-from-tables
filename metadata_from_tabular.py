@@ -157,9 +157,16 @@ def chain_collection_and_filename(
 # region Core
 
 
-def list_to_avus(md_list: list) -> Generator[iRODSMeta]:
-    """Convert a list of sets, each with a metadata name-value pair into a generator of iRODSMeta"""
-    avus = (iRODSMeta(str(item[0]), str(item[1])) for item in md_list)
+def dict_to_avus(row: dict) -> Generator[iRODSMeta]:
+    """Convert a dictionary of metadata name-value pairs into a generator of iRODSMeta"""
+    avus = []
+    for key, row[key] in row.items():
+        if type(row[key]) == list:
+            for value in row[key]:
+                avus.append(iRODSMeta(str(key), str(value)))
+        else:
+            avus.append(iRODSMeta(str(key), str(row[key])))
+            print(avus)
     return avus
 
 
@@ -168,35 +175,37 @@ def generate_rows(
 ) -> Generator[tuple]:
     """Yield a tuple of filename and metadata-dictionary from a dataframe"""
     for _, row in dataframe.iterrows():
-        md_list = []
+        md_dict = {}
         for k, v in row.items():
             if k != DATAOBJECT:
                 if k in multivalue_columns and isinstance(v, str):
+                    md_dict[k] = []
                     values = [
                         val.strip()
                         for val in v.split(multivalue_separator)
                         if val.strip()
                     ]
                     for val in values:
-                        md_list.append((k, val))
+                        md_dict[k].append(val)
                 else:
-                    md_list.append((k, v))
+                    md_dict[k] = v
 
-        yield (row[DATAOBJECT], md_list)
+        yield (row[DATAOBJECT], md_dict)
 
 
-def apply_metadata_to_data_object(path: str, avu_list: list, session: iRODSSession):
+def apply_metadata_to_data_object(path: str, avu_dict: dict, session: iRODSSession):
     """Add metadata from a dictionary to a given data object"""
     try:
         obj = session.data_objects.get(path)
         obj.metadata.apply_atomic_operations(
             *[
                 AVUOperation(operation="add", avu=item)
-                for item in list_to_avus(avu_list)
+                for item in dict_to_avus(avu_dict)
             ]
         )
         return True
-    except Exception:
+    except Exception as e:
+        print(e)
         return False
 
 
@@ -543,13 +552,13 @@ def run(filename, config, dry_run=False):
             multivalue_separator = yml.get("multivalue_separator") or ""
 
             # loop over each row printing a progress bar
-            for dataobject, md_list in track(
+            for dataobject, md_dict in track(
                 generate_rows(sheet, multivalue_columns, multivalue_separator),
                 description=progress_message,
             ):
                 res = True
                 if not dry_run:
-                    res = apply_metadata_to_data_object(dataobject, md_list, session)
+                    res = apply_metadata_to_data_object(dataobject, md_dict, session)
                 if res:
                     n += 1
                 else:
@@ -557,8 +566,10 @@ def run(filename, config, dry_run=False):
 
             console.print(
                 Markdown(
-                    f"{'Created' if dry_run else 'Applied'} {len(md_list)} AVUs for each of {n} data objects, with the following keys:\n\n"
-                    + "\n\n".join(f"- **{k}**" for k in {k for k, v in md_list})
+                    # This calculation may not be correct anymore in case of multiple values,
+                    # since the md_dict of each object can now have a different length
+                    f"{'Created' if dry_run else 'Applied'} {len(md_dict)} AVUs for each of {n} data objects, with the following keys:\n\n"
+                    + "\n\n".join(f"- **{k}**" for k in md_dict.keys())
                 )
             )
             if errors > 0:
