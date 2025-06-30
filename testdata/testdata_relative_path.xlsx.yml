@@ -1,0 +1,8 @@
+path_column:
+  column_name: file
+  path_type: relative
+  workdir: /zone/home/project
+separator: ','
+sheets:
+- Tabelle1
+
