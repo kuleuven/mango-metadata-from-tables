@@ -1,0 +1,4 @@
+{"/icts/home/datateam_icts_icts_test/mango-metadata-from-tables/file1.txt": {"size": "small", "color": "green","author": ["John Doe", "Jane Doe"], "shape": "star"}, 
+"/icts/home/datateam_icts_icts_test/mango-metadata-from-tables/file2.txt": {"size": "medium", "color": "red","author": ["John Doe"], "shape": "heart"}, 
+"/icts/home/datateam_icts_icts_test/mango-metadata-from-tables/file3.txt": {"size": "big", "color": "blue", "author": ["Jane Doe"], "shape": "square"},
+"/icts/home/datateam_icts_icts_test/mango-metadata-from-tables/file4.txt": {"size": "big", "color": "purple", "author": ["Jane Doe","Fulano De Tal"], "shape": "irregular", "description":"This is a text with a colon ; but it should not be split"}}

@@ -57,6 +57,16 @@ testcases = [
         "configuration_file": "testdata/testdata_multiple_values.csv.yml",
         "intended_results_file": "testdata/testdata_multiple_values.csv.json",
     },
+    {
+        # testcase for columns with multiple values
+        # xlsx containing two sheets with absolute paths
+        # the column 'author' is present in both sheets and contains multiple values in some rows,
+        # split with ;.
+        # the column 'description' has ; in it, but should not be split
+        "input_file": "testdata/testdata_multiple_values_multiple_sheets.xlsx",
+        "configuration_file": "testdata/testdata_multiple_values_multiple_sheets.xlsx.yml",
+        "intended_results_file": "testdata/testdata_multiple_values_multiple_sheets.xlsx.json",
+    },
 ]
 
 
