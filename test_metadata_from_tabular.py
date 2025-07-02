@@ -49,6 +49,14 @@ testcases = [
         "configuration_file": "testdata/testdata.xlsx_whitelisted.yml",
         "intended_results_file": "testdata/testdata.xlsx_whitelisted.json",
     },
+    {
+        # testcase for columns with multiple values
+        # csv containing absolute paths
+        # the column 'author' contains multiple values in some rows
+        "input_file": "testdata/testdata_multiple_values.csv",
+        "configuration_file": "testdata/testdata_multiple_values.csv.yml",
+        "intended_results_file": "testdata/testdata_multiple_values.csv.json",
+    },
 ]
 
 
