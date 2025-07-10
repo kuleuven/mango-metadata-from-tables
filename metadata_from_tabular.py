@@ -160,7 +160,7 @@ def chain_collection_and_filename(
 def dict_to_avus(row: dict) -> Generator[iRODSMeta]:
     """Convert a dictionary of metadata name-value pairs into a generator of iRODSMeta"""
     avus = []
-    for key, row[key] in row.items():
+    for key, value in row.items():
         if type(row[key]) == list:
             for value in row[key]:
                 avus.append(iRODSMeta(str(key), str(value)))
