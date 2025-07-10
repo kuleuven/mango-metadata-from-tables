@@ -91,10 +91,10 @@ def test_parse_inputfile_with_single_sheet(testcase):
         multivalue_separator = yml.get("multivalue_separator") or ""
     sheets = process_file(input_file, session=None)
     for sheetname, sheet in sheets.items():
-        for data_object, md_list in metadata_from_tabular.generate_rows(
+        for data_object, md_dict in metadata_from_tabular.generate_rows(
             sheet, multivalue_columns, multivalue_separator
         ):
-            results[data_object] = md_list
+            results[data_object] = md_dict
 
     with open(intended_results_file, "r") as f:
         intended_results = json.load(f)

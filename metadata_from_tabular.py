@@ -159,14 +159,11 @@ def chain_collection_and_filename(
 
 def dict_to_avus(row: dict) -> Generator[iRODSMeta]:
     """Convert a dictionary of metadata name-value pairs into a generator of iRODSMeta"""
-    avus = []
-    for key, value in row.items():
-        if type(row[key]) == list:
-            for value in row[key]:
-                avus.append(iRODSMeta(str(key), str(value)))
-        else:
-            avus.append(iRODSMeta(str(key), str(row[key])))
-            print(avus)
+    avus = (
+        iRODSMeta(str(key), str(value_item))
+        for key, value in row.items()
+        for value_item in value
+    )
     return avus
 
 
@@ -179,17 +176,13 @@ def generate_rows(
         for k, v in row.items():
             if k != DATAOBJECT:
                 if k in multivalue_columns and isinstance(v, str):
-                    md_dict[k] = []
-                    values = [
+                    md_dict[k] = [
                         val.strip()
                         for val in v.split(multivalue_separator)
                         if val.strip()
                     ]
-                    for val in values:
-                        md_dict[k].append(val)
                 else:
-                    md_dict[k] = v
-
+                    md_dict[k] = [v]
         yield (row[DATAOBJECT], md_dict)
 
 

@@ -1,3 +1,26 @@
-{"/icts/home/datateam_icts_icts_test/mango-metadata-from-tables/file1.txt": {"color": "green", "shape": "star"}, 
-"/icts/home/datateam_icts_icts_test/mango-metadata-from-tables/file2.txt": {"color": "red", "shape": "heart"}, 
-"/icts/home/datateam_icts_icts_test/mango-metadata-from-tables/file3.txt": {"color": "blue", "shape": "square"}}
+{
+  "/icts/home/datateam_icts_icts_test/mango-metadata-from-tables/file1.txt": {
+    "color": [
+      "green"
+    ],
+    "shape": [
+      "star"
+    ]
+  },
+  "/icts/home/datateam_icts_icts_test/mango-metadata-from-tables/file2.txt": {
+    "color": [
+      "red"
+    ],
+    "shape": [
+      "heart"
+    ]
+  },
+  "/icts/home/datateam_icts_icts_test/mango-metadata-from-tables/file3.txt": {
+    "color": [
+      "blue"
+    ],
+    "shape": [
+      "square"
+    ]
+  }
+}
