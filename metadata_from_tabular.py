@@ -163,6 +163,7 @@ def dict_to_avus(row: dict) -> Generator[iRODSMeta]:
         iRODSMeta(str(key), str(value_item))
         for key, value in row.items()
         for value_item in value
+        if not pd.isna(value_item)
     )
     return avus
 
