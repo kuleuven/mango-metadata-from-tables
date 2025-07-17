@@ -350,19 +350,13 @@ def list_columns_with_character(dfs: list[pd.DataFrame], character: str) -> Set[
     Given a list of pandas DataFrames, return a set of column names
     where at least one value contains the specified character.
     """
-    columns = set()
-    for df in dfs:
-        for col in df.columns:
-            # Only check string columns to avoid errors
-            if df[col].dtype == object:
-                if (
-                    df[col]
-                    .astype(str)
-                    .str.contains(character, na=False, regex=False)
-                    .any()
-                ):
-                    columns.add(col)
-    return columns
+    return set(
+        col
+        for df in dfs
+        for col in df.columns
+        if df[col].dtype == object
+        and df[col].astype(str).str.contains(character, na=False, regex=False).any()
+    )  # not sure about how this gets split in rows
 
 
 # endregion
