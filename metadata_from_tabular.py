@@ -478,18 +478,19 @@ def setup(example, output, sep=",", irods=False):
             multivalue_separator = Prompt.ask(
                 "What is the separator of your columns with multiple values?"
             )
-            columns_with_separator = list_columns_with_character(
-                sheets.values(), multivalue_separator
-            )
             if multivalue_separator == sep:
                 print(
                     "This separator cannot be used, because it is used to separate your columns."
                 )
-
-            elif len(columns_with_separator) == 0:
+                continue
+            columns_with_separator = list_columns_with_character(
+                sheets.values(), multivalue_separator
+            )
+            if len(columns_with_separator) == 0:
                 print(
                     "This separator cannot be used, because it does not appear in your file."
                 )
+
             else:
                 valid_separator_chosen = True
 
