@@ -303,12 +303,13 @@ def filter_columns(columns: list) -> dict:
     explain_multiple_choice()
     # using a set to get a list without duplicates
     filter_what = set()
-    while True:
+    while len(columns) > 0:
         ans = Prompt.ask(
             f"Which column(s) would you like to {filter_how}?", choices=columns + [""]
         )
         if ans:
             filter_what.add(ans)
+            columns.remove(ans)
         else:
             break
     # convert set back to list because a set cannot
@@ -326,13 +327,14 @@ def ask_multivalue_columns(columns: list) -> list:
     # using a set to get a list without duplicates
     multivalue_columns = set()
 
-    while True:
+    while len(columns) > 0:
         ans = Prompt.ask(
             f"Which column(s) can contain multiple values?",
             choices=columns + [""],
         )
         if ans:
             multivalue_columns.add(ans)
+            columns.remove(ans)
         else:
             break
 
