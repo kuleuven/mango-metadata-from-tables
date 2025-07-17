@@ -8,6 +8,7 @@ from irods.data_object import iRODSDataObject
 from irods.column import Criterion
 from irods.models import Collection, DataObject
 from collections.abc import Generator
+from typing import Set
 import click
 from rich.prompt import Prompt, Confirm
 from rich.console import Console, Group
@@ -344,7 +345,7 @@ def ask_multivalue_columns(columns: list) -> list:
     return multivalue_columns
 
 
-def list_columns_with_character(dfs, character):
+def list_columns_with_character(dfs: list[pd.DataFrame], character: str) -> Set[str]:
     """
     Given a list of pandas DataFrames, return a set of column names
     where at least one value contains the specified character.
