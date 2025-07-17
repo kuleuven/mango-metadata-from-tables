@@ -304,13 +304,15 @@ def filter_columns(columns: list) -> dict:
     explain_multiple_choice()
     # using a set to get a list without duplicates
     filter_what = set()
-    while len(columns) > 0:
+    # creating a 'choices'-list so we don't modify the original columns list
+    choices = columns.copy() + [""]
+    while any(c for c in choices if c != ""):
         ans = Prompt.ask(
-            f"Which column(s) would you like to {filter_how}?", choices=columns + [""]
+            f"Which column(s) would you like to {filter_how}?", choices=choices
         )
         if ans:
             filter_what.add(ans)
-            columns.remove(ans)
+            choices.remove(ans)
         else:
             break
     # convert set back to list because a set cannot
@@ -327,15 +329,16 @@ def ask_multivalue_columns(columns: list) -> list:
     explain_multiple_choice()
     # using a set to get a list without duplicates
     multivalue_columns = set()
-
-    while len(columns) > 0:
+    choices = columns.copy() + [""]
+    # creating a 'choices'-list so we don't modify the original columns list
+    while any(c for c in choices if c != ""):
         ans = Prompt.ask(
             f"Which column(s) can contain multiple values?",
-            choices=columns + [""],
+            choices=choices,
         )
         if ans:
             multivalue_columns.add(ans)
-            columns.remove(ans)
+            choices.remove(ans)
         else:
             break
 
@@ -345,16 +348,20 @@ def ask_multivalue_columns(columns: list) -> list:
     return multivalue_columns
 
 
-def list_columns_with_character(dfs: list[pd.DataFrame], character: str) -> Set[str]:
+def list_columns_with_character(
+    dfs: list[pd.DataFrame], eligible_columns: list, character: str
+) -> Set[str]:
     """
     Given a list of pandas DataFrames, return a set of column names
     where at least one value contains the specified character.
     """
+
     return set(
         col
         for df in dfs
         for col in df.columns
-        if df[col].dtype == object
+        if col in eligible_columns
+        and df[col].dtype == object
         and df[col].astype(str).str.contains(character, na=False, regex=False).any()
     )  # not sure about how this gets split in rows
 
@@ -454,18 +461,28 @@ def setup(example, output, sep=",", irods=False):
     for_yaml["path_column"].update(dataobject_column_type)
 
     # ask if any columns need to be blacklisted OR whitelisted
-    column_filter = filter_columns(
-        list(
-            set(
-                [
-                    col
-                    for sheet in sheets.values()
-                    for col in sheet.columns
-                    if col != dataobject_column
-                ]
-            )
+    all_column_names = list(
+        set(
+            col
+            for sheet in sheets.values()
+            for col in sheet.columns
+            if col != dataobject_column
         )
     )
+    column_filter = filter_columns(all_column_names)
+
+    # calculating columns based on filter
+    if column_filter.get("whitelist", False):
+        filtered_columns = [
+            col for col in all_column_names if col in column_filter["whitelist"]
+        ]
+    elif column_filter.get("blacklist", False):
+        filtered_columns = [
+            col for col in all_column_names if col not in column_filter["blacklist"]
+        ]
+    else:
+        filtered_columns = all_column_names
+
     # update yaml with column information
     for_yaml.update(column_filter)
 
@@ -484,7 +501,7 @@ def setup(example, output, sep=",", irods=False):
                 )
                 continue
             columns_with_separator = list_columns_with_character(
-                sheets.values(), multivalue_separator
+                sheets.values(), filtered_columns, multivalue_separator
             )
             if len(columns_with_separator) == 0:
                 print(
