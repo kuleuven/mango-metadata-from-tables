@@ -301,25 +301,30 @@ def filter_columns(columns: list) -> dict:
     if filter_how == "neither":
         return {}
     explain_multiple_choice()
-    filter_what = []
+    # using a set to get a list without duplicates
+    filter_what = set()
     while True:
         ans = Prompt.ask(
             f"Which column(s) would you like to {filter_how}?", choices=columns + [""]
         )
         if ans:
-            filter_what.append(ans)
+            filter_what.add(ans)
         else:
             break
+    # convert set back to list because a set cannot
+    # be added to a yml
+    filter_what = list(filter_what)
     if len(filter_what) == 0:
         return {}
     return {filter_how: filter_what}
 
 
-def ask_multivalue_columns(columns: list) -> dict:
+def ask_multivalue_columns(columns: list) -> list:
     """Ask user whether the sheets contain any colums with multiple values"""
 
     explain_multiple_choice()
-    multivalue_columns = []
+    # using a set to get a list without duplicates
+    multivalue_columns = set()
 
     while True:
         ans = Prompt.ask(
@@ -327,9 +332,13 @@ def ask_multivalue_columns(columns: list) -> dict:
             choices=columns + [""],
         )
         if ans:
-            multivalue_columns.append(ans)
+            multivalue_columns.add(ans)
         else:
             break
+
+    # convert set back to list because a set cannot
+    # be added to a yml
+    multivalue_columns = list(multivalue_columns)
     return multivalue_columns
 
 
