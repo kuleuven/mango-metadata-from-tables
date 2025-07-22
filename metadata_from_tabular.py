@@ -14,6 +14,7 @@ from rich.console import Console, Group
 from rich.markdown import Markdown
 from rich.syntax import Syntax
 from rich.progress import track
+import jinja2
 
 DATAOBJECT = "dataobject"
 
@@ -141,6 +142,18 @@ def query_dataobjects_with_filename(
         columns.append(DATAOBJECT)
         new_df = pd.DataFrame(columns=columns)
     return new_df
+
+
+def create_path_based_on_pattern(df: pd.DataFrame, pattern: str):
+    """Create a column for data object paths based on info from other columns"""
+
+    env = jinja2.Environment()
+    path_template = env.from_string(pattern)
+    constructed_paths = [
+        path_template.render(row.to_dict()) for _, row in df.iterrows()
+    ]
+    df[DATAOBJECT] = constructed_paths
+    return df
 
 
 def chain_collection_and_filename(
@@ -499,6 +512,10 @@ def apply_config(config: click.File) -> callable:
             elif yml["path_column"]["path_type"] == "relative":
                 sheet = chain_collection_and_filename(
                     sheet, path_column_name, yml["path_column"]["workdir"]
+                )
+            elif yml["path_column"]["path_type"] == "pattern":
+                sheet = create_path_based_on_pattern(
+                    sheet, yml["path_column"]["pattern"]
                 )
             else:
                 sheet = sheet.rename(columns={path_column_name: DATAOBJECT})

@@ -50,6 +50,13 @@ testcases = [
         "configuration_file": "testdata/testdata.xlsx_whitelisted.yml",
         "intended_results_file": "testdata/testdata.xlsx_whitelisted.json",
     },
+    {
+        # testcase for building a path based on other columns
+        # csv containing a number of columns to build the path from
+        "input_file": "testdata/testdata_path_from_columns.csv",
+        "configuration_file": "testdata/testdata_path_from_columns.csv.yml",
+        "intended_results_file": "testdata/testdata_path_from_columns.csv.json",
+    },
 ]
 
 
