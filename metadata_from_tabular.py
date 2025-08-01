@@ -556,18 +556,17 @@ def run(filename, config, dry_run=False):
 
     ssl_settings = {}
     with iRODSSession(irods_env_file=env_file, **ssl_settings) as session:
-        sheets = process_file(filename, session)  # preprocess the tabular file
+        processed_config_data = process_file(
+            filename, session
+        )  # preprocess the tabular file
+
+        sheets = processed_config_data["sheets"]
+        multivalue_columns = processed_config_data["multivalue_columns"]
+        multivalue_separator = processed_config_data["multivalue_separator"]
         for sheetname, sheet in sheets.items():
             progress_message = f"Adding metadata from {sheetname + ' in ' if len(sheets) > 1 else ''}`{filename}`..."
             n = 0
             errors = 0
-
-            # need to put the pointer back to the start of the yml file
-            # in order to read configuration
-            config.seek(0)
-            yml = yaml.safe_load(config)
-            multivalue_columns = yml.get("multivalue_columns") or []
-            multivalue_separator = yml.get("multivalue_separator") or ""
 
             # loop over each row printing a progress bar
             for dataobject, md_dict in track(
@@ -635,7 +634,15 @@ def apply_config(config: click.File) -> callable:
                 sheet = sheet[[c for c in sheet.columns if c not in yml["blacklist"]]]
             sheets_to_return[sheetname] = sheet
 
-        return sheets_to_return
+        multivalue_columns = yml.get("multivalue_columns", [])
+        multivalue_separator = yml.get("multivalue_separator", "")
+
+        processed_config_data = {
+            "sheets": sheets_to_return,
+            "multivalue_columns": multivalue_columns,
+            "multivalue_separator": multivalue_separator,
+        }
+        return processed_config_data
 
     return process_tabular_file
 

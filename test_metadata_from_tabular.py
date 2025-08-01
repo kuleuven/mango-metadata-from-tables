@@ -85,11 +85,10 @@ def test_parse_inputfile_with_single_sheet(testcase):
     with open(configuration_file) as config:
         # needed to open configuration as file-like object
         process_file = metadata_from_tabular.apply_config(config)
-        config.seek(0)
-        yml = yaml.safe_load(config)
-        multivalue_columns = yml.get("multivalue_columns") or []
-        multivalue_separator = yml.get("multivalue_separator") or ""
-    sheets = process_file(input_file, session=None)
+    processed_config_data = process_file(input_file, session=None)
+    sheets = processed_config_data["sheets"]
+    multivalue_columns = processed_config_data["multivalue_columns"]
+    multivalue_separator = processed_config_data["multivalue_separator"]
     for sheetname, sheet in sheets.items():
         for data_object, md_dict in metadata_from_tabular.generate_rows(
             sheet, multivalue_columns, multivalue_separator
