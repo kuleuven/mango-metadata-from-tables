@@ -6,6 +6,14 @@
     "color": [
       "green"
     ],
+    "author": [
+      
+        "John Doe"
+      ,
+      
+        "Jane Doe"
+      
+    ],
     "shape": [
       "star"
     ]
@@ -16,6 +24,11 @@
     ],
     "color": [
       "red"
+    ],
+    "author": [
+      
+        "John Doe"
+      
     ],
     "shape": [
       "heart"
@@ -28,11 +41,11 @@
     "color": [
       "blue"
     ],
+    "author": [
+        "Jane Doe"
+    ],
     "shape": [
       "square"
-    ],
-    "vibe": [
-      "like a forest on a sunny day"
     ]
   }
 }

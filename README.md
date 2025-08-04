@@ -24,6 +24,10 @@ This configuration file can then be provided as the `--config` option to the `ru
 command in order to standardize tabular files and properly obtain paths to data objects
 and attach metadata to them based on the columns of these files.
 
+**Note:** Empty values in the table are ignored, and will not be added as metadata.  
+In some cases, users may find it meaningful to include the absence of a value as contextual information.  
+In those cases, we advice to use a value like "Unknown", "Not applicable" or "NA" in your table instead.   
+
 ### Examples
 
 ### A small csv file

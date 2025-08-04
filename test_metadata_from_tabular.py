@@ -3,7 +3,6 @@
 import json
 import pytest
 import yaml
-
 import metadata_from_tabular
 
 # define test-cases
@@ -51,6 +50,24 @@ testcases = [
         "intended_results_file": "testdata/testdata.xlsx_whitelisted.json",
     },
     {
+        # testcase for columns with multiple values
+        # csv containing absolute paths
+        # the column 'author' contains multiple values in some rows
+        "input_file": "testdata/testdata_multiple_values.csv",
+        "configuration_file": "testdata/testdata_multiple_values.csv.yml",
+        "intended_results_file": "testdata/testdata_multiple_values.csv.json",
+    },
+    {
+        # testcase for columns with multiple values
+        # xlsx containing two sheets with absolute paths
+        # the column 'author' is present in both sheets and contains multiple values in some rows,
+        # split with ;.
+        # the column 'description' has ; in it, but should not be split
+        "input_file": "testdata/testdata_multiple_values_multiple_sheets.xlsx",
+        "configuration_file": "testdata/testdata_multiple_values_multiple_sheets.xlsx.yml",
+        "intended_results_file": "testdata/testdata_multiple_values_multiple_sheets.xlsx.json",
+    },
+    {
         # testcase for building a path based on other columns
         # csv containing a number of columns to build the path from
         "input_file": "testdata/testdata_path_from_columns.csv",
@@ -75,9 +92,14 @@ def test_parse_inputfile_with_single_sheet(testcase):
     with open(configuration_file) as config:
         # needed to open configuration as file-like object
         process_file = metadata_from_tabular.apply_config(config)
-    sheets = process_file(input_file, session=None)
+    processed_config_data = process_file(input_file, session=None)
+    sheets = processed_config_data["sheets"]
+    multivalue_columns = processed_config_data["multivalue_columns"]
+    multivalue_separator = processed_config_data["multivalue_separator"]
     for sheetname, sheet in sheets.items():
-        for data_object, md_dict in metadata_from_tabular.generate_rows(sheet):
+        for data_object, md_dict in metadata_from_tabular.generate_rows(
+            sheet, multivalue_columns, multivalue_separator
+        ):
             results[data_object] = md_dict
 
     with open(intended_results_file, "r") as f:
