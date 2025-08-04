@@ -306,7 +306,7 @@ def filter_columns(columns: list) -> dict:
     filter_what = set()
     # creating a 'choices'-list so we don't modify the original columns list
     choices = columns.copy() + [""]
-    while any(c for c in choices if c != ""):
+    while any(c for c in choices):
         ans = Prompt.ask(
             f"Which column(s) would you like to {filter_how}?", choices=choices
         )
@@ -331,7 +331,7 @@ def ask_multivalue_columns(columns: list) -> list:
     multivalue_columns = set()
     choices = columns.copy() + [""]
     # creating a 'choices'-list so we don't modify the original columns list
-    while any(c for c in choices if c != ""):
+    while any(c for c in choices):
         ans = Prompt.ask(
             f"Which column(s) can contain multiple values?",
             choices=choices,
