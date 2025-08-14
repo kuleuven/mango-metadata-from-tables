@@ -6,6 +6,10 @@
     "color": [
       "green"
     ],
+    "author": [
+        "John Doe",
+        "Jane Doe"
+    ],
     "shape": [
       "star"
     ]
@@ -16,6 +20,9 @@
     ],
     "color": [
       "red"
+    ],
+    "author": [
+        "John Doe"
     ],
     "shape": [
       "heart"
@@ -28,11 +35,29 @@
     "color": [
       "blue"
     ],
+    "author": [
+        "Jane Doe"
+    ],
     "shape": [
       "square"
+    ]
+  },
+  "/icts/home/datateam_icts_icts_test/mango-metadata-from-tables/file4.txt": {
+    "size": [
+      "big"
     ],
-    "vibe": [
-      "like a forest on a sunny day"
+    "color": [
+      "purple"
+    ],
+    "author": [
+        "Jane Doe",
+        "Fulano De Tal"
+    ],
+    "shape": [
+      "irregular"
+    ],
+    "description": [
+      "This is a text with a colon ; but it should not be split"
     ]
   }
 }

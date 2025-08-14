@@ -8,12 +8,14 @@ from irods.data_object import iRODSDataObject
 from irods.column import Criterion
 from irods.models import Collection, DataObject
 from collections.abc import Generator
+from typing import Set
 import click
 from rich.prompt import Prompt, Confirm
 from rich.console import Console, Group
 from rich.markdown import Markdown
 from rich.syntax import Syntax
 from rich.progress import track
+import yaml
 
 DATAOBJECT = "dataobject"
 
@@ -158,14 +160,32 @@ def chain_collection_and_filename(
 
 def dict_to_avus(row: dict) -> Generator[iRODSMeta]:
     """Convert a dictionary of metadata name-value pairs into a generator of iRODSMeta"""
-    avus = (iRODSMeta(str(key), str(value)) for key, value in row.items())
+    avus = (
+        iRODSMeta(str(key), str(value_item))
+        for key, value in row.items()
+        for value_item in value
+        if not pd.isna(value_item)
+    )
     return avus
 
 
-def generate_rows(dataframe: pd.DataFrame) -> Generator[tuple]:
+def generate_rows(
+    dataframe: pd.DataFrame, multivalue_columns: list, multivalue_separator: str
+) -> Generator[tuple]:
     """Yield a tuple of filename and metadata-dictionary from a dataframe"""
     for _, row in dataframe.iterrows():
-        yield (row[DATAOBJECT], {k: v for k, v in row.items() if k != DATAOBJECT})
+        md_dict = {}
+        for k, v in row.items():
+            if k != DATAOBJECT:
+                if k in multivalue_columns and isinstance(v, str):
+                    md_dict[k] = [
+                        val.strip()
+                        for val in v.split(multivalue_separator)
+                        if val.strip()
+                    ]
+                else:
+                    md_dict[k] = [v]
+        yield (row[DATAOBJECT], md_dict)
 
 
 def apply_metadata_to_data_object(path: str, avu_dict: dict, session: iRODSSession):
@@ -179,7 +199,8 @@ def apply_metadata_to_data_object(path: str, avu_dict: dict, session: iRODSSessi
             ]
         )
         return True
-    except Exception:
+    except Exception as e:
+        print(e)
         return False
 
 
@@ -281,18 +302,68 @@ def filter_columns(columns: list) -> dict:
     if filter_how == "neither":
         return {}
     explain_multiple_choice()
-    filter_what = []
-    while True:
+    # using a set to get a list without duplicates
+    filter_what = set()
+    # creating a 'choices'-list so we don't modify the original columns list
+    choices = columns.copy() + [""]
+    while any(c for c in choices):
         ans = Prompt.ask(
-            f"Which column(s) would you like to {filter_how}?", choices=columns + [""]
+            f"Which column(s) would you like to {filter_how}?", choices=choices
         )
         if ans:
-            filter_what.append(ans)
+            filter_what.add(ans)
+            choices.remove(ans)
         else:
             break
+    # convert set back to list because a set cannot
+    # be added to a yml
+    filter_what = list(filter_what)
     if len(filter_what) == 0:
         return {}
     return {filter_how: filter_what}
+
+
+def ask_multivalue_columns(columns: list) -> list:
+    """Ask user whether the sheets contain any colums with multiple values"""
+
+    explain_multiple_choice()
+    # using a set to get a list without duplicates
+    multivalue_columns = set()
+    choices = columns.copy() + [""]
+    # creating a 'choices'-list so we don't modify the original columns list
+    while any(c for c in choices):
+        ans = Prompt.ask(
+            f"Which column(s) can contain multiple values?",
+            choices=choices,
+        )
+        if ans:
+            multivalue_columns.add(ans)
+            choices.remove(ans)
+        else:
+            break
+
+    # convert set back to list because a set cannot
+    # be added to a yml
+    multivalue_columns = list(multivalue_columns)
+    return multivalue_columns
+
+
+def list_columns_with_character(
+    dfs: list[pd.DataFrame], eligible_columns: list, character: str
+) -> Set[str]:
+    """
+    Given a list of pandas DataFrames, return a set of column names
+    where at least one value contains the specified character.
+    """
+
+    return set(
+        col
+        for df in dfs
+        for col in df.columns
+        if col in eligible_columns
+        and df[col].dtype == object
+        and df[col].astype(str).str.contains(character, na=False, regex=False).any()
+    )  # not sure about how this gets split in rows
 
 
 # endregion
@@ -390,20 +461,63 @@ def setup(example, output, sep=",", irods=False):
     for_yaml["path_column"].update(dataobject_column_type)
 
     # ask if any columns need to be blacklisted OR whitelisted
-    column_filter = filter_columns(
-        list(
-            set(
-                [
-                    col
-                    for sheet in sheets.values()
-                    for col in sheet.columns
-                    if col != dataobject_column
-                ]
-            )
+    all_column_names = list(
+        set(
+            col
+            for sheet in sheets.values()
+            for col in sheet.columns
+            if col != dataobject_column
         )
     )
+    column_filter = filter_columns(all_column_names)
+
+    # calculating columns based on filter
+    if column_filter.get("whitelist", False):
+        filtered_columns = [
+            col for col in all_column_names if col in column_filter["whitelist"]
+        ]
+    elif column_filter.get("blacklist", False):
+        filtered_columns = [
+            col for col in all_column_names if col not in column_filter["blacklist"]
+        ]
+    else:
+        filtered_columns = all_column_names
+
     # update yaml with column information
     for_yaml.update(column_filter)
+
+    if Confirm.ask(
+        "Do your sheet(s) have columns which may contain multiple values per row?"
+    ):
+
+        valid_separator_chosen = False
+        while not valid_separator_chosen:
+            multivalue_separator = Prompt.ask(
+                "What is the separator of your columns with multiple values?"
+            )
+            if multivalue_separator == sep:
+                print(
+                    "This separator cannot be used, because it is used to separate your columns."
+                )
+                continue
+            columns_with_separator = list_columns_with_character(
+                sheets.values(), filtered_columns, multivalue_separator
+            )
+            if len(columns_with_separator) == 0:
+                print(
+                    "This separator cannot be used, because it does not appear in your file."
+                )
+
+            else:
+                valid_separator_chosen = True
+
+        # ask for multivalue columns
+        multivalue_columns = ask_multivalue_columns(
+            list(col for col in columns_with_separator if col != dataobject_column)
+        )
+        # update yaml with multivalue columns information
+        for_yaml["multivalue_separator"] = multivalue_separator
+        for_yaml["multivalue_columns"] = multivalue_columns
 
     # create yaml from the dictionary
     yml = yaml.dump(for_yaml, default_flow_style=False, indent=2)
@@ -433,6 +547,7 @@ def run(filename, config, dry_run=False):
     It should have some column with a unique identifier for the data objects,
     and columns for other metadata fields.
     """
+
     process_file = apply_config(config)  # parse the configuration file
     try:
         env_file = os.environ["IRODS_ENVIRONMENT_FILE"]
@@ -441,14 +556,21 @@ def run(filename, config, dry_run=False):
 
     ssl_settings = {}
     with iRODSSession(irods_env_file=env_file, **ssl_settings) as session:
-        sheets = process_file(filename, session)  # preprocess the tabular file
+        processed_config_data = process_file(
+            filename, session
+        )  # preprocess the tabular file
+
+        sheets = processed_config_data["sheets"]
+        multivalue_columns = processed_config_data["multivalue_columns"]
+        multivalue_separator = processed_config_data["multivalue_separator"]
         for sheetname, sheet in sheets.items():
             progress_message = f"Adding metadata from {sheetname + ' in ' if len(sheets) > 1 else ''}`{filename}`..."
             n = 0
             errors = 0
+
             # loop over each row printing a progress bar
             for dataobject, md_dict in track(
-                generate_rows(sheet),
+                generate_rows(sheet, multivalue_columns, multivalue_separator),
                 description=progress_message,
             ):
                 res = True
@@ -461,6 +583,8 @@ def run(filename, config, dry_run=False):
 
             console.print(
                 Markdown(
+                    # This calculation may not be correct anymore in case of multiple values,
+                    # since the md_dict of each object can now have a different length
                     f"{'Created' if dry_run else 'Applied'} {len(md_dict)} AVUs for each of {n} data objects, with the following keys:\n\n"
                     + "\n\n".join(f"- **{k}**" for k in md_dict.keys())
                 )
@@ -474,7 +598,6 @@ def run(filename, config, dry_run=False):
 
 def apply_config(config: click.File) -> callable:
     """Parse the configuration file and apply the preprocessing"""
-    import yaml
 
     yml = yaml.safe_load(config)
 
@@ -511,7 +634,15 @@ def apply_config(config: click.File) -> callable:
                 sheet = sheet[[c for c in sheet.columns if c not in yml["blacklist"]]]
             sheets_to_return[sheetname] = sheet
 
-        return sheets_to_return
+        multivalue_columns = yml.get("multivalue_columns", [])
+        multivalue_separator = yml.get("multivalue_separator", "")
+
+        processed_config_data = {
+            "sheets": sheets_to_return,
+            "multivalue_columns": multivalue_columns,
+            "multivalue_separator": multivalue_separator,
+        }
+        return processed_config_data
 
     return process_tabular_file
 
