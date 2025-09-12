@@ -519,6 +519,25 @@ def setup(example, output, sep=",", irods=False):
         for_yaml["multivalue_separator"] = multivalue_separator
         for_yaml["multivalue_columns"] = multivalue_columns
 
+    # ask about schema metadata
+    if Confirm.ask("Do you have a ManGO metadata schema to validate your metadata?"):
+        # for now, only support local schemas, we are not checking in with iRODS (yet)
+        schema_file = ""
+        while not os.path.exists(schema_file):
+            # TODO add mango-mdschema validation OF the schema file
+            schema_file = Prompt.ask("Please provide a valid path for your schema: ")
+            if not schema_file:
+                print("Changed your mind? We won't use a schema then!")
+                break
+        if schema_file:
+            IGNORE = "Ignore them"
+            process_non_schema_metadata = Prompt.ask(
+                "What should we do with metadata that does not match the schema?",
+                choices = [IGNORE, "Save them as non-schema metadata"],
+                default = IGNORE
+            )
+            yml["mango_schema"] = { "path": schema_file, "exclude_other_md": process_non_schema_metadata == IGNORE}
+            
     # create yaml from the dictionary
     yml = yaml.dump(for_yaml, default_flow_style=False, indent=2)
     # Make a group and indicate where it is saved
