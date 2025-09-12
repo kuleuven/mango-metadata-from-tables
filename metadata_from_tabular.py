@@ -16,6 +16,7 @@ from rich.markdown import Markdown
 from rich.syntax import Syntax
 from rich.progress import track
 import yaml
+from mango_mdschema import Schema
 
 DATAOBJECT = "dataobject"
 
@@ -158,15 +159,23 @@ def chain_collection_and_filename(
 # region Core
 
 
-def dict_to_avus(row: dict) -> Generator[iRODSMeta]:
-    """Convert a dictionary of metadata name-value pairs into a generator of iRODSMeta"""
-    avus = (
+def dict_to_avus(row: dict, schema: Schema = None, ignore_non_schema: bool = False) -> list[iRODSMeta]:
+    """Convert a dictionary of metadata name-value pairs into a list of iRODSMeta"""
+    if schema is not None:
+        valid_schema_metadata = schema.validate(row) # dict with metadata that passed the schema
+        schema_avus = schema.to_avus(valid_schema_metadata) # it could also be with just dict
+        # create empty dict if other metadata is ignored; otherwise dict of metadata that did not pass
+        other_metadata = {} if ignore_non_schema else { k: v for k, v in row.items() if not k in valid_schema_metadata }
+    else: # if there is no schema
+        schema_avus = [] # no schema metadata
+        other_metadata = row # all metadata
+    non_schema_avus = [
         iRODSMeta(str(key), str(value_item))
-        for key, value in row.items()
+        for key, value in other_metadata.items() # empty if all metadata is from schema or the other metadata is ignored
         for value_item in value
         if not pd.isna(value_item)
-    )
-    return avus
+    ]
+    return schema_avus + non_schema_avus
 
 
 def generate_rows(
@@ -188,14 +197,14 @@ def generate_rows(
         yield (row[DATAOBJECT], md_dict)
 
 
-def apply_metadata_to_data_object(path: str, avu_dict: dict, session: iRODSSession):
+def apply_metadata_to_data_object(path: str, avu_dict: dict, schema_instructions: dict, session: iRODSSession):
     """Add metadata from a dictionary to a given data object"""
     try:
         obj = session.data_objects.get(path)
         obj.metadata.apply_atomic_operations(
             *[
                 AVUOperation(operation="add", avu=item)
-                for item in dict_to_avus(avu_dict)
+                for item in dict_to_avus(avu_dict, **schema_instructions)
             ]
         )
         return True
@@ -579,6 +588,7 @@ def run(filename, config, dry_run=False):
         sheets = processed_config_data["sheets"]
         multivalue_columns = processed_config_data["multivalue_columns"]
         multivalue_separator = processed_config_data["multivalue_separator"]
+        schema_instructions = processed_config_data["schema_instructions"]
         for sheetname, sheet in sheets.items():
             progress_message = f"Adding metadata from {sheetname + ' in ' if len(sheets) > 1 else ''}`{filename}`..."
             n = 0
@@ -591,7 +601,7 @@ def run(filename, config, dry_run=False):
             ):
                 res = True
                 if not dry_run:
-                    res = apply_metadata_to_data_object(dataobject, md_dict, session)
+                    res = apply_metadata_to_data_object(dataobject, md_dict, schema_instructions, session)
                 if res:
                     n += 1
                 else:
@@ -652,11 +662,17 @@ def apply_config(config: click.File) -> callable:
 
         multivalue_columns = yml.get("multivalue_columns", [])
         multivalue_separator = yml.get("multivalue_separator", "")
+        schema_info = yml.get("mango_schema", {})
+        schema_instructions = {
+            "schema": Schema(schema_info["path"]) if "path" in schema_info else None,
+            "ignore_non_schema": schema_info.get("exclude_other_md", False)
+        }
 
         processed_config_data = {
             "sheets": sheets_to_return,
             "multivalue_columns": multivalue_columns,
             "multivalue_separator": multivalue_separator,
+            "schema_instructions": schema_instructions
         }
         return processed_config_data
 
