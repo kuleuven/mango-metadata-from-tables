@@ -530,13 +530,10 @@ def setup(example, output, sep=",", irods=False):
                 print("Changed your mind? We won't use a schema then!")
                 break
         if schema_file:
-            IGNORE = "Ignore them"
-            process_non_schema_metadata = Prompt.ask(
-                "What should we do with metadata that does not match the schema?",
-                choices = [IGNORE, "Save them as non-schema metadata"],
-                default = IGNORE
+            ignore_other_metadata = Confirm.ask(
+                "Should we just discard the metadata that does not match the schema? (If you say no, it will be added as non-schema metadata):"
             )
-            yml["mango_schema"] = { "path": schema_file, "exclude_other_md": process_non_schema_metadata == IGNORE}
+            for_yaml["mango_schema"] = { "path": schema_file, "exclude_other_md": ignore_other_metadata}
             
     # create yaml from the dictionary
     yml = yaml.dump(for_yaml, default_flow_style=False, indent=2)
