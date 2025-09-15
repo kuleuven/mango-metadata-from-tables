@@ -166,7 +166,10 @@ def unlist_value(value: list, field) -> str | int:
 
 
 def dict_to_avus(
-    row: dict, schema: Schema = None, ignore_non_schema: bool = False
+    row: dict,
+    schema: Schema = None,
+    ignore_non_schema: bool = False,
+    ignore_invalid_md: bool = True,
 ) -> list[iRODSMeta]:
     """Convert a dictionary of metadata name-value pairs into a list of iRODSMeta"""
     if schema is not None:
@@ -181,11 +184,19 @@ def dict_to_avus(
         schema_avus = schema.to_avus(
             valid_schema_metadata
         )  # it could also be with just dict
+
         # create empty dict if other metadata is ignored; otherwise dict of metadata that did not pass
+        def choose_other_metadata(k):
+            if k not in valid_schema_metadata:
+                return True
+            if not ignore_invalid_md and valid_schema_metadata.get(k, None) is None:
+                return True
+            return False
+
         other_metadata = (
             {}
             if ignore_non_schema
-            else {k: v for k, v in row.items() if k not in valid_schema_metadata}
+            else {k: v for k, v in row.items() if choose_other_metadata(k)}
         )
     else:  # if there is no schema
         schema_avus = []  # no schema metadata
@@ -563,12 +574,21 @@ def setup(example, output, sep=",", irods=False):
                 break
         if schema_file:
             ignore_other_metadata = Confirm.ask(
-                "Should we just discard the metadata that does not match the schema? (If you say no, it will be added as non-schema metadata):"
+                "Should we discard the columns that don't match the schema? (If you say no, they will be added as non-schema metadata):"
             )
             for_yaml["mango_schema"] = {
                 "path": schema_file,
-                "exclude_other_md": ignore_other_metadata,
+                "exclude_other_metadata": ignore_other_metadata,
             }
+            if ignore_other_metadata:
+                invalid_metadata_example = (
+                    "e.g. 'size=medium' instead of 'mgs.schema.size=medium'"
+                )
+                for_yaml["mango_schema"]["ignore_invalid_schema_metadata"] = (
+                    Confirm.ask(
+                        f"Should we discard invalid schema values? (Otherwise, they will be added as non-schema metadata, {invalid_metadata_example})"
+                    )
+                )
 
     # create yaml from the dictionary
     yml = yaml.dump(for_yaml, default_flow_style=False, indent=2)
@@ -631,9 +651,7 @@ def run(filename, config, dry_run=False):
                         dataobject, md_dict, schema_instructions, session
                     )
                 else:
-                    res = isinstance(
-                        dict_to_avus(md_dict, **schema_instructions)[0], iRODSMeta
-                    )
+                    print(dict_to_avus(md_dict, **schema_instructions))
                 if res:
                     n += 1
                 else:
@@ -695,10 +713,17 @@ def apply_config(config: click.File) -> callable:
         multivalue_columns = yml.get("multivalue_columns", [])
         multivalue_separator = yml.get("multivalue_separator", "")
         schema_info = yml.get("mango_schema", {})
-        schema_instructions = {
-            "schema": Schema(schema_info["path"]) if "path" in schema_info else None,
-            "ignore_non_schema": schema_info.get("exclude_other_md", False),
-        }
+        if os.path.exists(schema_info.get("path", "")):
+            schema_instructions = {
+                "schema": Schema(schema_info["path"]),
+                "ignore_non_schema": schema_info.get("exclude_other_metadata", False),
+                "ignore_invalid_md": schema_info.get(
+                    "ignore_invalid_schema_metadata", True
+                ),
+            }
+        else:
+            console.print("No schema found, metadata will be added as is.")
+            schema_instructions = {}
 
         processed_config_data = {
             "sheets": sheets_to_return,
