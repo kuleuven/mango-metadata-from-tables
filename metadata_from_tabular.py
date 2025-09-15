@@ -159,19 +159,40 @@ def chain_collection_and_filename(
 # region Core
 
 
-def dict_to_avus(row: dict, schema: Schema = None, ignore_non_schema: bool = False) -> list[iRODSMeta]:
+def unlist_value(value: list, field) -> str | int:
+    """Unlist values for non repeatable fields"""
+    if len(value) == 1 and not field.repeatable:
+        return value[0]
+
+
+def dict_to_avus(
+    row: dict, schema: Schema = None, ignore_non_schema: bool = False
+) -> list[iRODSMeta]:
     """Convert a dictionary of metadata name-value pairs into a list of iRODSMeta"""
     if schema is not None:
-        valid_schema_metadata = schema.validate(row) # dict with metadata that passed the schema
-        schema_avus = schema.to_avus(valid_schema_metadata) # it could also be with just dict
+        dict_to_validate = {
+            k: unlist_value(v, schema.fields[k])
+            for k, v in row.items()
+            if k in schema.fields
+        }
+        valid_schema_metadata = schema.validate(
+            dict_to_validate
+        )  # dict with metadata that passed the schema
+        schema_avus = schema.to_avus(
+            valid_schema_metadata
+        )  # it could also be with just dict
         # create empty dict if other metadata is ignored; otherwise dict of metadata that did not pass
-        other_metadata = {} if ignore_non_schema else { k: v for k, v in row.items() if not k in valid_schema_metadata }
-    else: # if there is no schema
-        schema_avus = [] # no schema metadata
-        other_metadata = row # all metadata
+        other_metadata = (
+            {}
+            if ignore_non_schema
+            else {k: v for k, v in row.items() if k not in valid_schema_metadata}
+        )
+    else:  # if there is no schema
+        schema_avus = []  # no schema metadata
+        other_metadata = row  # all metadata
     non_schema_avus = [
         iRODSMeta(str(key), str(value_item))
-        for key, value in other_metadata.items() # empty if all metadata is from schema or the other metadata is ignored
+        for key, value in other_metadata.items()  # empty if all metadata is from schema or the other metadata is ignored
         for value_item in value
         if not pd.isna(value_item)
     ]
@@ -197,7 +218,9 @@ def generate_rows(
         yield (row[DATAOBJECT], md_dict)
 
 
-def apply_metadata_to_data_object(path: str, avu_dict: dict, schema_instructions: dict, session: iRODSSession):
+def apply_metadata_to_data_object(
+    path: str, avu_dict: dict, schema_instructions: dict, session: iRODSSession
+):
     """Add metadata from a dictionary to a given data object"""
     try:
         obj = session.data_objects.get(path)
@@ -542,8 +565,11 @@ def setup(example, output, sep=",", irods=False):
             ignore_other_metadata = Confirm.ask(
                 "Should we just discard the metadata that does not match the schema? (If you say no, it will be added as non-schema metadata):"
             )
-            for_yaml["mango_schema"] = { "path": schema_file, "exclude_other_md": ignore_other_metadata}
-            
+            for_yaml["mango_schema"] = {
+                "path": schema_file,
+                "exclude_other_md": ignore_other_metadata,
+            }
+
     # create yaml from the dictionary
     yml = yaml.dump(for_yaml, default_flow_style=False, indent=2)
     # Make a group and indicate where it is saved
@@ -601,7 +627,13 @@ def run(filename, config, dry_run=False):
             ):
                 res = True
                 if not dry_run:
-                    res = apply_metadata_to_data_object(dataobject, md_dict, schema_instructions, session)
+                    res = apply_metadata_to_data_object(
+                        dataobject, md_dict, schema_instructions, session
+                    )
+                else:
+                    res = isinstance(
+                        dict_to_avus(md_dict, **schema_instructions)[0], iRODSMeta
+                    )
                 if res:
                     n += 1
                 else:
@@ -665,14 +697,14 @@ def apply_config(config: click.File) -> callable:
         schema_info = yml.get("mango_schema", {})
         schema_instructions = {
             "schema": Schema(schema_info["path"]) if "path" in schema_info else None,
-            "ignore_non_schema": schema_info.get("exclude_other_md", False)
+            "ignore_non_schema": schema_info.get("exclude_other_md", False),
         }
 
         processed_config_data = {
             "sheets": sheets_to_return,
             "multivalue_columns": multivalue_columns,
             "multivalue_separator": multivalue_separator,
-            "schema_instructions": schema_instructions
+            "schema_instructions": schema_instructions,
         }
         return processed_config_data
 
