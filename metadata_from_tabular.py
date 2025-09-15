@@ -181,6 +181,15 @@ def dict_to_avus(
         valid_schema_metadata = schema.validate(
             dict_to_validate
         )  # dict with metadata that passed the schema
+        for k, v in valid_schema_metadata.items():
+            if v is None:
+                line1 = f"Found a value '{dict_to_validate[k]}' of column '{k}' that does not match the schema."
+                line2 = (
+                    "It will be excluded."
+                    if ignore_invalid_md
+                    else "It will be added as non-schema metadata."
+                )
+                console.print(f"{line1} {line2}")
         schema_avus = schema.to_avus(
             valid_schema_metadata
         )  # it could also be with just dict
@@ -235,16 +244,14 @@ def apply_metadata_to_data_object(
     """Add metadata from a dictionary to a given data object"""
     try:
         obj = session.data_objects.get(path)
+        avus = dict_to_avus(avu_dict, **schema_instructions)
         obj.metadata.apply_atomic_operations(
-            *[
-                AVUOperation(operation="add", avu=item)
-                for item in dict_to_avus(avu_dict, **schema_instructions)
-            ]
+            *[AVUOperation(operation="add", avu=item) for item in avus]
         )
-        return True
+        return len(avus)
     except Exception as e:
         print(e)
-        return False
+        return 0
 
 
 # endregion
@@ -639,30 +646,43 @@ def run(filename, config, dry_run=False):
             progress_message = f"Adding metadata from {sheetname + ' in ' if len(sheets) > 1 else ''}`{filename}`..."
             n = 0
             errors = 0
+            min_avus = None
+            max_avus = None
 
             # loop over each row printing a progress bar
             for dataobject, md_dict in track(
                 generate_rows(sheet, multivalue_columns, multivalue_separator),
                 description=progress_message,
             ):
-                res = True
                 if not dry_run:
                     res = apply_metadata_to_data_object(
                         dataobject, md_dict, schema_instructions, session
                     )
                 else:
-                    print(dict_to_avus(md_dict, **schema_instructions))
+                    console.print(
+                        f"Creating the following AVUs for dataobject {dataobject}:"
+                    )
+                    avus = dict_to_avus(md_dict, **schema_instructions)
+                    res = len(avus)
+                    print(avus)
+                    console.print("\n")
                 if res:
                     n += 1
+                    if max_avus is None or res > max_avus:
+                        max_avus = res
+                    if min_avus is None or res < min_avus:
+                        min_avus = res
                 else:
                     errors += 1
 
+            avu_length_range = (
+                max_avus if min_avus == max_avus else f"{min_avus} to {max_avus}"
+            )
             console.print(
                 Markdown(
                     # This calculation may not be correct anymore in case of multiple values,
                     # since the md_dict of each object can now have a different length
-                    f"{'Created' if dry_run else 'Applied'} {len(md_dict)} AVUs for each of {n} data objects, with the following keys:\n\n"
-                    + "\n\n".join(f"- **{k}**" for k in md_dict.keys())
+                    f"{'Created' if dry_run else 'Applied'} {avu_length_range} AVUs for each of {n} data objects"
                 )
             )
             if errors > 0:
