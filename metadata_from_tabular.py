@@ -70,7 +70,7 @@ def parse_tabular_file(path: str, session=None, separator: str = ","):
         # Local excel files are binary and should be opened with 'rb'.
         # However, iRODS implemented their 'open' method differently,
         # and there you should use just 'r' instead
-        reading_mode = "r" if type(file) == iRODSDataObject else "rb"
+        reading_mode = "r" if isinstance(file, iRODSDataObject) else "rb"
         with file.open(reading_mode) as f:
             sheets = pd.read_excel(f, sheet_name=None)
         if any(x.strip() != x for x in sheets.keys()):
@@ -383,7 +383,7 @@ def ask_multivalue_columns(columns: list) -> list:
     # creating a 'choices'-list so we don't modify the original columns list
     while any(c for c in choices):
         ans = Prompt.ask(
-            f"Which column(s) can contain multiple values?",
+            "Which column(s) can contain multiple values?",
             choices=choices,
         )
         if ans:
@@ -702,7 +702,7 @@ def apply_config(config: click.File) -> callable:
         sheets = parse_tabular_file(filename, session, yml.get("separator", None))
         sheets_to_return = {}
         for sheetname, sheet in sheets.items():
-            if not sheetname in yml["sheets"]:
+            if sheetname not in yml["sheets"]:
                 continue
             path_column_name = yml["path_column"]["column_name"]
             if yml["path_column"]["path_type"] == "part":
