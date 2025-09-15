@@ -1,0 +1,28 @@
+{
+  "schema_name": "test",
+  "version": "1.0.0",
+  "status": "published",
+  "properties": {
+    "color": {
+      "title": "Color of the object",
+      "type": "text",
+      "required": true,
+      "help": "Input type: text"
+    },
+    "size": {
+      "title": "Size of the object",
+      "type": "select",
+      "values": [
+        "small",
+        "big"
+      ],
+      "multiple": false,
+      "ui": "radio",
+      "required": false
+    }
+  },
+  "edited_by": "u0118974",
+  "realm": "ghum_datateam",
+  "title": "Excel2AVUs test dataset",
+  "parent": ""
+}
