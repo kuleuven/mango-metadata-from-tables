@@ -95,6 +95,11 @@ def test_avus(avus, basic_metadata, current_cases):
 
     if case_id == "basic":
         expected_output = basic_metadata
+    elif case_id == "blacklist":
+        expected_output = {
+            dataobject: [avu for avu in list_of_avus if avu.name != "color"]
+            for dataobject, list_of_avus in basic_metadata.items()
+        }
     elif case_id == "multiple_sheets":
         expected_output = multiple_sheets_metadata(basic_metadata)
     elif case_id == "schema_metadata":

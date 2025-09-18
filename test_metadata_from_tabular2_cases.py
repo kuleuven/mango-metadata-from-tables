@@ -20,6 +20,7 @@ basic_examples = [
     },
 ]
 
+
 default_config = {
     "path_column": {"column_name": "dataobject", "path_type": "absolute"},
     "separator": ",",
@@ -29,7 +30,7 @@ default_config = {
 
 def config_dict_to_yaml(config_dict: dict) -> io.StringIO:
     config = {k: v for k, v in default_config.items()}  # copy default
-    config |= config_dict  # update with custom
+    config.update(config_dict)  # update with specific config for this testcase
     return io.StringIO(yaml.dump(config))
 
 
@@ -37,6 +38,11 @@ def config_dict_to_yaml(config_dict: dict) -> io.StringIO:
 def case_basic(mapping):
     config_as_file = config_dict_to_yaml(mapping.get("config", {}))
     return mapping["input_file"], config_as_file
+
+
+def case_blacklist():
+    config_as_file = config_dict_to_yaml({"separator": ";", "blacklist": ["color"]})
+    return "testdata/testdata.csv", config_as_file
 
 
 def case_multiple_sheets():
