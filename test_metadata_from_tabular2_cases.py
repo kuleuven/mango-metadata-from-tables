@@ -34,7 +34,7 @@ def config_dict_to_yaml(config_dict: dict) -> io.StringIO:
     return io.StringIO(yaml.dump(config))
 
 
-@parametrize("mapping", basic_examples)
+@parametrize("mapping", basic_examples, idgen=lambda mapping: mapping["input_file"])
 def case_basic(mapping):
     config_as_file = config_dict_to_yaml(mapping.get("config", {}))
     return mapping["input_file"], config_as_file
