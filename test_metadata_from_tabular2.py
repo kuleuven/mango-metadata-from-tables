@@ -1,3 +1,4 @@
+import io
 from pytest_cases import parametrize_with_cases, fixture
 from irods.meta import iRODSMeta
 import metadata_from_tabular
@@ -5,6 +6,7 @@ import metadata_from_tabular
 
 @fixture
 def basic_metadata():
+    """Basic expected output, to be adapted based on configuration changes."""
     return {
         "/icts/home/datateam_icts_icts_test/mango-metadata-from-tables/file1.txt": [
             iRODSMeta("size", "small"),
@@ -25,14 +27,18 @@ def basic_metadata():
 
 
 def namespace_metadata(avu: iRODSMeta) -> iRODSMeta:
+    """Turn an AVU into its schema counterpart ('test' schema)."""
     return iRODSMeta(f"mgs.test.{avu.name}", avu.value)
 
 
 def namespace_all_metadata(avu_list: list[iRODSMeta]) -> list[iRODSMeta]:
+    """Turn all the metadata in a list of AVUs into their schema counterparts."""
     return [namespace_metadata(avu) for avu in avu_list]
 
 
 def namespace_partial_metadata(avu_list: list[iRODSMeta]) -> list[iRODSMeta]:
+    """Only turn metadata into schema metadata if it fits the v2.0.0 schema."""
+
     def filter_metadata(avu):
         if avu.name == "color" or (
             avu.name == "size" and avu.value in ["small", "big"]
@@ -44,7 +50,11 @@ def namespace_partial_metadata(avu_list: list[iRODSMeta]) -> list[iRODSMeta]:
 
 
 def multiple_sheets_metadata(metadata: dict) -> dict:
-    md_copy = {k: [vv for vv in v] for k, v in metadata.items()}
+    """Add the AVU of the multiple sheets case."""
+    md_copy = {
+        dataobject: [avu for avu in avu_list]
+        for dataobject, avu_list in metadata.items()
+    }
     new_md = iRODSMeta("vibe", "like a forest on a sunny day")
     md_copy[
         "/icts/home/datateam_icts_icts_test/mango-metadata-from-tables/file3.txt"
@@ -54,7 +64,12 @@ def multiple_sheets_metadata(metadata: dict) -> dict:
 
 @fixture
 @parametrize_with_cases("input_file,config")
-def avus(input_file, config):
+def avus(input_file: str, config: io.StringIO) -> dict:
+    """
+    Based on a pair of path-to-tabular-file and a StringIO object
+    representing the config YAML, generate a dictionary with
+    absolute paths as keys and a list of AVUs as values.
+    """
     process_file = metadata_from_tabular.apply_config(config)
     processed_config_data = process_file(input_file, session=None)
     sheets = processed_config_data["sheets"]
@@ -74,42 +89,46 @@ def avus(input_file, config):
 
 
 def test_avus(avus, basic_metadata, current_cases):
-    avus_id, avus_fun, avus_params = current_cases["avus"]["config"]
+    case_id, case_fun, config = current_cases["avus"]["config"]
     expected_output = None
-    if avus_id == "basic":
+    if case_id == "basic":
         expected_output = basic_metadata
-    elif avus_id == "multiple_sheets":
+    elif case_id == "multiple_sheets":
         expected_output = multiple_sheets_metadata(basic_metadata)
-    elif avus_id == "schema_metadata":
-        if avus_params["path"] == "file_does_not_exist":
+    elif case_id == "schema_metadata":
+        if config["path"] == "file_does_not_exist":
             # case: there is no valid schema
             expected_output = basic_metadata
-        elif avus_params["path"] == "testdata/test-1.0.0-published.json":
+        elif config["path"] == "testdata/test-1.0.0-published.json":
             # case: the valid schema matches all data
             expected_output = {
-                k: namespace_all_metadata(v) for k, v in basic_metadata.items()
+                dataobject: namespace_all_metadata(list_of_avus)
+                for dataobject, list_of_avus in basic_metadata.items()
             }
         else:
             # case: partial-match schema
             expected_output = {
-                k: namespace_partial_metadata(v) for k, v in basic_metadata.items()
+                dataobject: namespace_partial_metadata(list_of_avus)
+                for dataobject, list_of_avus in basic_metadata.items()
             }
-            if avus_params["exclude_other_metadata"]:
+            if config["exclude_other_metadata"]:
                 # case: non-schema metadata is excluded
                 expected_output = {
-                    k: [vv for vv in v if vv.name.startswith("mgs")]
-                    for k, v in expected_output.items()
+                    dataobject: [
+                        avu for avu in list_of_avus if avu.name.startswith("mgs")
+                    ]
+                    for dataobject, list_of_avus in expected_output.items()
                 }
-            elif avus_params["ignore_invalid_schema_metadata"]:
+            elif config["ignore_invalid_schema_metadata"]:
                 # case: only invalid schema metadata is excluded
                 expected_output = {
-                    k: [vv for vv in v if vv.name != "size"]
-                    for k, v in expected_output.items()
+                    dataobject: [avu for avu in list_of_avus if avu.name != "size"]
+                    for dataobject, list_of_avus in expected_output.items()
                 }
 
     if expected_output is not None:
-        for k, v in avus.items():
+        for data_object, list_of_avus in avus.items():
             # sort arrays to make sure the equivalence works
-            v.sort(key=lambda x: x.name)
-            expected_output[k].sort(key=lambda x: x.name)
-            assert v == expected_output[k]
+            list_of_avus.sort(key=lambda x: x.name)
+            expected_output[data_object].sort(key=lambda x: x.name)
+            assert list_of_avus == expected_output[data_object]
