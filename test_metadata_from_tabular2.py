@@ -1,6 +1,8 @@
 import io
-from pytest_cases import parametrize_with_cases, fixture
+
 from irods.meta import iRODSMeta
+from pytest_cases import fixture, parametrize_with_cases
+
 import metadata_from_tabular
 
 
