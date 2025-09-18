@@ -7,6 +7,17 @@ from pytest_cases import parametrize
 basic_examples = [
     {"input_file": "testdata/testdata.csv", "config": {"separator": ";"}},
     {"input_file": "testdata/testdata.xlsx", "config": {"sheets": ["Tabelle1"]}},
+    {
+        "input_file": "testdata/testdata_relative_path.xlsx",
+        "config": {
+            "path_column": {
+                "column_name": "file",
+                "path_type": "relative",
+                "workdir": "/icts/home/datateam_icts_icts_test",
+            },
+            "sheets": ["Tabelle1"],
+        },
+    },
 ]
 
 default_config = {
