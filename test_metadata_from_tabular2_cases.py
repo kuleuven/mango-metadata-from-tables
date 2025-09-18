@@ -45,6 +45,13 @@ def case_blacklist():
     return "testdata/testdata.csv", config_as_file
 
 
+def case_whitelist():
+    config_as_file = config_dict_to_yaml(
+        {"separator": ";", "whitelist": ["shape", "size"]}
+    )
+    return "testdata/testdata.csv", config_as_file
+
+
 def case_multiple_sheets():
     config_as_file = config_dict_to_yaml({"sheets": ["Tabelle1", "Sheet1"]})
     return "testdata/testdata_multiple_sheets.xlsx", config_as_file

@@ -95,7 +95,9 @@ def test_avus(avus, basic_metadata, current_cases):
 
     if case_id == "basic":
         expected_output = basic_metadata
-    elif case_id == "blacklist":
+    elif case_id in ["blacklist", "whitelist"]:
+        """Both the blacklist and whitelist test exclude the column 'color,
+        either by blacklisting it, or whitelisting all other columns"""
         expected_output = {
             dataobject: [avu for avu in list_of_avus if avu.name != "color"]
             for dataobject, list_of_avus in basic_metadata.items()
