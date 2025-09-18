@@ -84,6 +84,26 @@ def multiple_values(metadata: dict) -> dict:
     return md_copy
 
 
+def multiple_values_multiple_sheets(metadata: dict) -> dict:
+    """Add the avus for the multiple values multiple sheets case"""
+    md_copy = multiple_values(metadata)
+
+    # adding metadata for second sheet
+    md_copy[
+        "/icts/home/datateam_icts_icts_test/mango-metadata-from-tables/file4.txt"
+    ] = [
+        iRODSMeta("color", "purple"),
+        iRODSMeta("size", "big"),
+        iRODSMeta("shape", "irregular"),
+        iRODSMeta("author", "Jane Doe"),
+        iRODSMeta("author", "Fulano De Tal"),
+        iRODSMeta(
+            "description", "This is a text with a colon ; but it should not be split"
+        ),
+    ]
+    return md_copy
+
+
 @fixture
 @parametrize_with_cases("input_file,config")
 def avus(input_file: str, config: io.StringIO) -> dict:
@@ -126,6 +146,8 @@ def test_avus(avus, basic_metadata, current_cases):
         expected_output = multiple_sheets_metadata(basic_metadata)
     elif case_id == "multiple_values":
         expected_output = multiple_values(basic_metadata)
+    elif case_id == "multiple_values_multiple_sheets":
+        expected_output = multiple_values_multiple_sheets(basic_metadata)
     elif case_id == "schema_metadata":
         if config["path"] == "file_does_not_exist":
             # case: there is no valid schema
