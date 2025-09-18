@@ -92,7 +92,7 @@ def avus(input_file: str, config: io.StringIO) -> dict:
 
 def test_avus(avus, basic_metadata, current_cases):
     case_id, case_fun, config = current_cases["avus"]["config"]
-    expected_output = None
+
     if case_id == "basic":
         expected_output = basic_metadata
     elif case_id == "multiple_sheets":
@@ -128,9 +128,8 @@ def test_avus(avus, basic_metadata, current_cases):
                     for dataobject, list_of_avus in expected_output.items()
                 }
 
-    if expected_output is not None:
-        for data_object, list_of_avus in avus.items():
-            # sort arrays to make sure the equivalence works
-            list_of_avus.sort(key=lambda x: x.name)
-            expected_output[data_object].sort(key=lambda x: x.name)
-            assert list_of_avus == expected_output[data_object]
+    for data_object, list_of_avus in avus.items():
+        # sort arrays to make sure the equivalence works
+        list_of_avus.sort(key=lambda x: x.name)
+        expected_output[data_object].sort(key=lambda x: x.name)
+        assert list_of_avus == expected_output[data_object]
