@@ -17,6 +17,8 @@ from rich.syntax import Syntax
 from rich.progress import track
 import yaml
 import jinja2
+import datetime
+
 
 DATAOBJECT = "dataobject"
 
@@ -146,17 +148,20 @@ def query_dataobjects_with_filename(
     return new_df
 
 
-def render_single_path_from_pattern(row: pd.Series, pattern: str) -> str:
+def render_single_path_from_pattern(
+    row: pd.Series, pattern: str, env: jinja2.Environment
+) -> str:
     """Render a path from a pattern using a single DataFrame row."""
-    env = jinja2.Environment()
+
     path_template = env.from_string(pattern)
     return path_template.render(row.to_dict())
 
 
-def create_path_based_on_pattern(df: pd.DataFrame, pattern: str):
+def create_path_based_on_pattern(
+    df: pd.DataFrame, pattern: str, env: jinja2.Environment
+):
     """Create a column for data object paths based on info from other columns"""
 
-    env = jinja2.Environment()
     path_template = env.from_string(pattern)
     constructed_paths = [
         path_template.render(row.to_dict()) for _, row in df.iterrows()
@@ -172,6 +177,35 @@ def chain_collection_and_filename(
     df = df.rename(columns={filename_column: DATAOBJECT})
     df[DATAOBJECT] = [str(Path(workingdirectory) / Path(x)) for x in df[DATAOBJECT]]
     return df
+
+
+# filters for creating patterns
+
+
+def date_format(value, input_format="%Y%m%d", output_format="%Y%m%d"):
+    """
+    Return a date in the specified output format
+
+    If the value is a datetime object, it will be converted immediately.
+    If the value is a string, it will be converted to a datetime object
+    according to the iput format, and then converted
+    """
+
+    if isinstance(value, str):
+        value = datetime.datetime.strptime(value, input_format)
+    # If already a datetime object, skip conversion
+    return value.strftime(output_format)
+
+
+def lower(text):
+    return text.lower()
+
+
+def create_jinja_environment_with_filters():
+    jinja_environment = jinja2.Environment()
+    jinja_environment.filters["date_format"] = date_format
+    jinja_environment.filters["lower"] = lower
+    return jinja_environment
 
 
 # endregion
@@ -715,8 +749,9 @@ def apply_config(config: click.File) -> callable:
                     sheet, path_column_name, yml["path_column"]["workdir"]
                 )
             elif yml["path_column"]["path_type"] == "pattern":
+                env = create_jinja_environment_with_filters()
                 sheet = create_path_based_on_pattern(
-                    sheet, yml["path_column"]["pattern"]
+                    sheet, yml["path_column"]["pattern"], env
                 )
             else:
                 sheet = sheet.rename(columns={path_column_name: DATAOBJECT})
