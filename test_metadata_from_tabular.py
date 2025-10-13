@@ -74,6 +74,13 @@ testcases = [
         "configuration_file": "testdata/testdata_path_from_columns.csv.yml",
         "intended_results_file": "testdata/testdata_path_from_columns.csv.json",
     },
+    {
+        # testcase for building a path based on other columns with jinja filters applied
+        # csv containing a number of columns to build the path from
+        "input_file": "testdata/testdata_path_from_columns_with_filters.csv",
+        "configuration_file": "testdata/testdata_path_from_columns_with_filters.csv.yml",
+        "intended_results_file": "testdata/testdata_path_from_columns_with_filters.csv.json",
+    },
 ]
 
 
