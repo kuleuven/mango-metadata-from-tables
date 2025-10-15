@@ -188,7 +188,7 @@ def date_format(value, input_format="%Y%m%d", output_format="%Y%m%d"):
 
     If the value is a datetime object, it will be converted immediately.
     If the value is a string, it will be converted to a datetime object
-    according to the iput format, and then converted
+    according to the input format, and then converted to the output format.
     """
 
     if isinstance(value, str):
@@ -198,6 +198,8 @@ def date_format(value, input_format="%Y%m%d", output_format="%Y%m%d"):
 
 
 def lower(text):
+    """Return a string in lowercase"""
+
     return text.lower()
 
 
@@ -328,7 +330,8 @@ def test_pattern_on_first_column(sheet_collection, pattern):
     else:
         raise ValueError("sheet_collection must be a DataFrame or dict of DataFrames")
     row = df.iloc[0]
-    return render_single_path_from_pattern(row, pattern)
+    env = create_jinja_environment_with_filters()
+    return render_single_path_from_pattern(row, pattern, env)
 
 
 def classify_object_column_new(sheet_collection: dict) -> dict:
@@ -358,7 +361,9 @@ def classify_object_column_new(sheet_collection: dict) -> dict:
         dataobject_column = ""
         pattern_question = """
     Provide a path pattern using double curly braces ({{ }}) to reference column names.
-    Example: '/zone/home/project/{{lab}}_{{experiment}}.txt' will use values from the lab and experiment columns in each row."""
+    Example: '/zone/home/project/{{ lab }}_{{ experiment }}.txt' will use values from the lab and experiment columns in each row.
+    You can also use filters to modify the values of the columns before using them in the path.
+    For more information, see the documentation in docs/construct_path_from_columns.md.\n"""
         pattern_okay = False
         while not pattern_okay:
             pattern = Prompt.ask(pattern_question)
