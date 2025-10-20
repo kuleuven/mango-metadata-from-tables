@@ -1,6 +1,6 @@
 # Constructing paths from other columns
 
-This module allows users to construct the paths of data objects by combining information from one or more columns of the table.  
+This application allows users to construct the paths of data objects by combining information from one or more columns of the table.  
 This can be configured during setup.  
 This documentation will guide you how to create your own pattern to construct paths, both by taking info from other columns, and by modyfing these values with filters.  
 
@@ -10,9 +10,8 @@ A normal data object path will look roughly like follows:
 
 `'/zone/home/project/collection/subcollection/filename.extension'`  
 
-Ideally, your table contains a column with this literal information.  
-Alternatively, by putting a column name between two curly braces (`{{ }}`), you can inject a value from another column into the path.  
-Mind that there should be spaces between the curly braces and the column name.  
+Ideally, your table contains a column with this literal information, or with a relative path to be combined with a working directory.  
+Alternatively, by putting a column name between [two curly braces](https://jinja.palletsprojects.com/en/stable/templates/#variables) (`{{ }}`), you can inject a value from another column into the path.  
 As example, let's imagine an Excel file with the following contents:  
 
 | sample | lab           | experiment  |
@@ -30,12 +29,10 @@ In that cases, the pattern to construct these paths is as follows:
 `'/zone/home/sciences/{{ lab }}/output/{{ experiment }}.txt'`
 
 
-
-
 ## 2. Modifying information with filters
 
 Sometimes, the values in a column do not have the same format as they should have in the data object paths.  
-In that case, you can use filters to change the formatting of the values.
+In that case, you can use [filters](https://jinja.palletsprojects.com/en/stable/templates/#filters) to change the formatting of the values.
 
 The syntax is as follows:
 
@@ -62,37 +59,23 @@ This can be done as follows:
 
 ## 3. List of available filters
 
+In order to modify values, you can use a list of **built-in filters** created by Jinja, on which this paths construction system is based.  
+You can find a list of built-in filters and their usage [here](https://jinja.palletsprojects.com/en/stable/templates/#builtin-filters).  
 
-### date_format
+Apart from that, this application also contains its own filters, of which you can find a list below:  
 
-Description:  
-    The date_format filter converts a date from one format (e.g. DD/MM/YYYY) to another (e.g. YYMMDD).  
-    If the value is a datetime object, it will be converted immediately.  
-    If the value is a string, it will be converted to a datetime object
-    according to the input format, and then converted to the output format.  
-Arguments:   
- - input_format: str  
-      The format of the date you are converting.  
-      Default is YYYYMMDD.  
- - output_format: str  
-      The format of the date you are converting.  
-      Default is YYYYMMDD.  
-Example:  
-   ```
-   '20000201' | date_format(input_format="%Y%m%d", output_format="%d/%m/%Y")
-   ``` 
-   turns `20000201` into `01/02/2000`.
+### `date_format`
 
+The `date_format` filter converts a [datetime object](https://docs.python.org/3/library/datetime.html) or a valid string representing a datetime into a string in a [specific format](https://docs.python.org/3/library/datetime.html#strftime-and-strptime-format-codes).
 
-### lower
+Argument | Type | Description | Default
+--- | --- | --- | ---
+`input_format` | string | The format of the source string | YYYMMDD
+`output_format` | string | The format of the target string | YYYYMMDD
 
-Description:    
-    The lower filter converts a text string into lowercase.    
-Arguments:  
-    None  
-Example:  
-    ```
-    'Hello World' | lower
-    ```
-    turns 'Hello World' into 'hello world'
+#### Examples
 
+Value of `my_date` | Pattern | Result
+---- | --- | ---
+"20000201" | `{{ my_date \| date_format(output_format="%d/%m/%Y") }}` | "01/02/2000"
+"2000-02-01" | `{{ my_date \| date_format(input_format="%Y-%m-%d") }}` | "20000201"

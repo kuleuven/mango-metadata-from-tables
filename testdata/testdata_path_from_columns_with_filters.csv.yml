@@ -1,7 +1,7 @@
 path_column:
   path_type: pattern
   column_name: None
-  pattern: "/icts/home/datateam_icts_icts_test/mango-metadata-from-tables/{{size}}_shapes/{{ shape|lower }}_{{ date|date_format(input_format='%d/%m/%Y',output_format='%d%m%Y')}}.jpg"
+  pattern: "/icts/home/datateam_icts_icts_test/mango-metadata-from-tables/{{ size }}_shapes/{{ shape|lower }}_{{ date|date_format(input_format='%d/%m/%Y',output_format='%d%m%Y')}}.jpg"
 separator: ","
 sheets:
 - single_sheet
