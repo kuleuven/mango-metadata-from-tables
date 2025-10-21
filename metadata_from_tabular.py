@@ -197,16 +197,9 @@ def date_format(value, input_format="%Y%m%d", output_format="%Y%m%d"):
     return value.strftime(output_format)
 
 
-def lower(text):
-    """Return a string in lowercase"""
-
-    return text.lower()
-
-
 def create_jinja_environment_with_filters():
     jinja_environment = jinja2.Environment()
     jinja_environment.filters["date_format"] = date_format
-    jinja_environment.filters["lower"] = lower
     return jinja_environment
 
 
