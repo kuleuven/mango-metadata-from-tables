@@ -313,15 +313,12 @@ def identify_dataobject_column(sheet_collection: dict) -> str:
     )
 
 
-def test_pattern_on_first_column(sheet_collection, pattern):
-    # If a DataFrame is passed directly
-    if hasattr(sheet_collection, "iloc"):
-        df = sheet_collection
-    # If a dict of DataFrames is passed
-    elif hasattr(sheet_collection, "values"):
-        df = list(sheet_collection.values())[0]
-    else:
-        raise ValueError("sheet_collection must be a DataFrame or dict of DataFrames")
+def test_pattern_on_first_column(sheet_collection: dict[pd.DataFrame], pattern: str):
+    """
+    Apply a pattern on the first row of the first dataframe of a dictionary of dataframes.
+    """
+
+    df = list(sheet_collection.values())[0]
     row = df.iloc[0]
     env = create_jinja_environment_with_filters()
     return render_single_path_from_pattern(row, pattern, env)
