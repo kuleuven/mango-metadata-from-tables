@@ -182,7 +182,7 @@ def chain_collection_and_filename(
 # filters for creating patterns
 
 
-def date_format(value, input_format="%Y%m%d", output_format="%Y%m%d"):
+def date_format(value, input_format="%d-%m-%Y", output_format="%Y-%m-%d"):
     """
     Return a date in the specified output format
 

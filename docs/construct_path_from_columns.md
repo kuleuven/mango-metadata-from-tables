@@ -70,12 +70,12 @@ The `date_format` filter converts a [datetime object](https://docs.python.org/3/
 
 Argument | Type | Description | Default
 --- | --- | --- | ---
-`input_format` | string | The format of the source string | YYYMMDD
-`output_format` | string | The format of the target string | YYYYMMDD
+`input_format` | string | The format of the source string | %d-%m-%Y 
+`output_format` | string | The format of the target string | %Y-%m-%d 
 
 #### Examples
 
 Value of `my_date` | Pattern | Result
 ---- | --- | ---
-"20000201" | `{{ my_date \| date_format(output_format="%d/%m/%Y") }}` | "01/02/2000"
-"2000-02-01" | `{{ my_date \| date_format(input_format="%Y-%m-%d") }}` | "20000201"
+"01-02-2000" | `{{ my_date \| date_format(output_format="%d/%m/%Y") }}` | "01/02/2000"
+"01/02/2000" | `{{ my_date \| date_format(input_format="%d/%m/%Y") }}` | "2000-02-01"
