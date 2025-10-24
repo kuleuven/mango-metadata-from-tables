@@ -335,11 +335,11 @@ def classify_object_column_new(sheet_collection: dict) -> dict:
     For your table, how can we find the data object in each row?
     
 
-    1) A column contains the full path to the data object
+    1) A column contains the absolute path to the data object
     2) A column contains the relative path to the data object
     3) A column contains (part of the) data object name
-    4) The path of the data object can be reconstructed by combining 
-       info of multiple columns.
+    4) The absolute path of the data object can be reconstructed by combining 
+       info of multiple columns and strings.
     """
 
     answer = Prompt.ask(message, choices=["1", "2", "3", "4"])
@@ -351,7 +351,7 @@ def classify_object_column_new(sheet_collection: dict) -> dict:
         dataobject_column = ""
         pattern_question = """
     Provide a path pattern using double curly braces ({{ }}) to reference column names.
-    Example: '/zone/home/project/{{ lab }}_{{ experiment }}.txt' will use values from the lab and experiment columns in each row.
+    Example: '/zone/home/project/{{ lab }}_{{ experiment }}.txt' will use values from the 'lab' and 'experiment' columns in each row.
     You can also use filters to modify the values of the columns before using them in the path.
     For more information, see the documentation in docs/construct_path_from_columns.md.\n"""
         pattern_okay = False
