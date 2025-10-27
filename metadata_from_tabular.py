@@ -370,6 +370,9 @@ def classify_object_column_new(sheet_collection: dict) -> dict:
                 pattern_okay = Confirm.ask(
                     f"""Based on the pattern you provided, the first row in your file contains the following path: {preview}.\n Does this look okay?"""
                 )
+        print(
+            f"Great! Data objects will be found by combining columns and strings in the following pattern: {pattern}"
+        )
 
     else:
         dataobject_column = identify_dataobject_column(sheet_collection)
