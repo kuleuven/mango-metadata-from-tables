@@ -330,7 +330,7 @@ def test_pattern_on_first_column(sheet_collection: dict[pd.DataFrame], pattern: 
     return result
 
 
-def classify_object_column_new(sheet_collection: dict) -> dict:
+def classify_object_column(sheet_collection: dict) -> dict:
 
     import re
 
@@ -571,7 +571,7 @@ def setup(example, output, sep=",", irods=False):
     sheets = {k: v for k, v in sheets.items() if k in selection_of_sheets}
 
     # get info on the dataobject column, if there is any
-    path_info = classify_object_column_new(sheets)
+    path_info = classify_object_column(sheets)
     dataobject_column = path_info["dataobject_column"]
 
     # if there is a dedicated dataobject column,
