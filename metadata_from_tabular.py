@@ -321,7 +321,13 @@ def test_pattern_on_first_column(sheet_collection: dict[pd.DataFrame], pattern: 
     df = list(sheet_collection.values())[0]
     row = df.iloc[0]
     env = create_jinja_environment_with_filters()
-    return render_single_path_from_pattern(row, pattern, env)
+    try:
+        result = render_single_path_from_pattern(row, pattern, env)
+    except Exception as e:
+        message = f"The following error occured while trying to apply the pattern to a row:\n {type(e).__name__}: {repr(e.args)}"
+        print(message)
+        result = None
+    return result
 
 
 def classify_object_column_new(sheet_collection: dict) -> dict:
@@ -358,10 +364,12 @@ def classify_object_column_new(sheet_collection: dict) -> dict:
         while not pattern_okay:
             pattern = Prompt.ask(pattern_question)
             preview = test_pattern_on_first_column(sheet_collection, pattern)
-            pattern_okay = Confirm.ask(
-                f"""Based on the pattern you provided, the first row in your file contains the following path: {preview}.
-            Does this look okay?"""
-            )
+            if preview is None:
+                print("The pattern you provided is not valid.")
+            else:
+                pattern_okay = Confirm.ask(
+                    f"""Based on the pattern you provided, the first row in your file contains the following path: {preview}.\n Does this look okay?"""
+                )
 
     else:
         dataobject_column = identify_dataobject_column(sheet_collection)
