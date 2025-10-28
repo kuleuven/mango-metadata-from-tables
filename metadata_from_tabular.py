@@ -16,6 +16,9 @@ from rich.markdown import Markdown
 from rich.syntax import Syntax
 from rich.progress import track
 import yaml
+import jinja2
+import datetime
+
 
 DATAOBJECT = "dataobject"
 
@@ -145,6 +148,28 @@ def query_dataobjects_with_filename(
     return new_df
 
 
+def render_single_path_from_pattern(
+    row: pd.Series, pattern: str, env: jinja2.Environment
+) -> str:
+    """Render a path from a pattern using a single DataFrame row."""
+
+    path_template = env.from_string(pattern)
+    return path_template.render(row.to_dict())
+
+
+def create_path_based_on_pattern(
+    df: pd.DataFrame, pattern: str, env: jinja2.Environment
+):
+    """Create a column for data object paths based on info from other columns"""
+
+    path_template = env.from_string(pattern)
+    constructed_paths = [
+        path_template.render(row.to_dict()) for _, row in df.iterrows()
+    ]
+    df[DATAOBJECT] = constructed_paths
+    return df
+
+
 def chain_collection_and_filename(
     df: pd.DataFrame, filename_column: str, workingdirectory: str
 ):
@@ -152,6 +177,30 @@ def chain_collection_and_filename(
     df = df.rename(columns={filename_column: DATAOBJECT})
     df[DATAOBJECT] = [str(Path(workingdirectory) / Path(x)) for x in df[DATAOBJECT]]
     return df
+
+
+# filters for creating patterns
+
+
+def date_format(value, input_format="%d-%m-%Y", output_format="%Y-%m-%d"):
+    """
+    Return a date in the specified output format
+
+    If the value is a datetime object, it will be converted immediately.
+    If the value is a string, it will be converted to a datetime object
+    according to the input format, and then converted to the output format.
+    """
+
+    if isinstance(value, str):
+        value = datetime.datetime.strptime(value, input_format)
+    # If already a datetime object, skip conversion
+    return value.strftime(output_format)
+
+
+def create_jinja_environment_with_filters():
+    jinja_environment = jinja2.Environment()
+    jinja_environment.filters["date_format"] = date_format
+    return jinja_environment
 
 
 # endregion
@@ -262,6 +311,94 @@ def identify_dataobject_column(sheet_collection: dict) -> str:
         "Which column contains an unique identifier for the target data object?",
         choices=columns,
     )
+
+
+def test_pattern_on_first_column(sheet_collection: dict[pd.DataFrame], pattern: str):
+    """
+    Apply a pattern on the first row of the first dataframe of a dictionary of dataframes.
+    """
+
+    df = list(sheet_collection.values())[0]
+    row = df.iloc[0]
+    env = create_jinja_environment_with_filters()
+    try:
+        result = render_single_path_from_pattern(row, pattern, env)
+    except Exception as e:
+        message = f"The following error occured while trying to apply the pattern to a row:\n {type(e).__name__}: {repr(e.args)}"
+        print(message)
+        result = None
+    return result
+
+
+def classify_object_column(sheet_collection: dict) -> dict:
+
+    import re
+
+    message = """
+    In order to add metadata to your data objects, each row needs
+    to have a reference to your data object.
+
+    For your table, how can we find the data object in each row?
+    
+
+    1) A column contains the absolute path to the data object
+    2) A column contains the relative path to the data object
+    3) A column contains (part of the) data object name
+    4) The absolute path of the data object can be reconstructed by combining 
+       info of multiple columns and strings.
+    """
+
+    answer = Prompt.ask(message, choices=["1", "2", "3", "4"])
+    choice_mapping = {"1": "absolute", "2": "relative", "3": "part", "4": "pattern"}
+    path_type = choice_mapping[answer]
+    workdir = ""
+    pattern = ""
+    if path_type == "pattern":
+        dataobject_column = ""
+        pattern_question = """
+    Provide a path pattern using double curly braces ({{ }}) to reference column names.
+    Example: '/zone/home/project/{{ lab }}_{{ experiment }}.txt' will use values from the 'lab' and 'experiment' columns in each row.
+    You can also use filters to modify the values of the columns before using them in the path.
+    For more information, see the documentation in docs/construct_path_from_columns.md.\n"""
+        pattern_okay = False
+        while not pattern_okay:
+            pattern = Prompt.ask(pattern_question)
+            preview = test_pattern_on_first_column(sheet_collection, pattern)
+            if preview is None:
+                print("The pattern you provided is not valid.")
+            else:
+                pattern_okay = Confirm.ask(
+                    f"""Based on the pattern you provided, the first row in your file contains the following path: {preview}.\n Does this look okay?"""
+                )
+        print(
+            f"Great! Data objects will be found by combining columns and strings in the following pattern: {pattern}"
+        )
+
+    else:
+        dataobject_column = identify_dataobject_column(sheet_collection)
+        if path_type in ["relative", "part"]:
+            while not re.match("/[a-z_]+/home/[^/]+/?", workdir):
+                workdir = Prompt.ask(
+                    "What is the absolute path of the collection where we can find these data objects? (It should start with `/{zone}/home/{project}/...`)"
+                )
+        if path_type == "relative":
+            console.print(
+                Markdown(
+                    f"Great! The relative paths in `{dataobject_column}` will be chained to `{workdir}`!"
+                )
+            )
+        elif path_type == "part":
+            console.print(
+                Markdown(
+                    f"Great! Data objects will be found by querying the contents of `{dataobject_column}` within `{workdir}`!"
+                )
+            )
+    return {
+        "dataobject_column": dataobject_column,
+        "path_type": path_type,
+        "pattern": pattern,
+        "workdir": workdir,
+    }
 
 
 def classify_dataobject_column(dataobject_column: str) -> dict:
@@ -431,13 +568,16 @@ def setup(example, output, sep=",", irods=False):
 
     # select which sheets to use, if there are more than one
     selection_of_sheets = select_sheets(sheets)
-
     sheets = {k: v for k, v in sheets.items() if k in selection_of_sheets}
 
-    # identify the column with data objects identifiers
-    dataobject_column = identify_dataobject_column(sheets)
-    # only keep sheets that contain that column
-    sheets = {k: v for k, v in sheets.items() if dataobject_column in v.columns}
+    # get info on the dataobject column, if there is any
+    path_info = classify_object_column(sheets)
+    dataobject_column = path_info["dataobject_column"]
+
+    # if there is a dedicated dataobject column,
+    # only keep the sheets that contain that column
+    if dataobject_column:
+        sheets = {k: v for k, v in sheets.items() if dataobject_column in v.columns}
 
     # start config yaml with the info we have
     for_yaml = {
@@ -445,20 +585,11 @@ def setup(example, output, sep=",", irods=False):
         "separator": sep,
         "path_column": {
             "column_name": dataobject_column,
+            "path_type": path_info["path_type"],
+            "pattern": path_info["pattern"],
+            "workdir": path_info["workdir"],
         },
     }
-
-    # check the first data object name to see if it is absolute
-    first_dataobject = list(sheets.values())[0][dataobject_column][0]
-    if re.match("/[a-z_]+/home/[^/]+/", first_dataobject):
-        dataobject_column_type = {"path_type": "absolute"}
-    else:
-        # if the path is not absolute, ask:
-        # - whether it is relative or part of a filename
-        # - in which working directory (at least project level) it should be searched
-        dataobject_column_type = classify_dataobject_column(dataobject_column)
-    # add path and working directory info to the yaml
-    for_yaml["path_column"].update(dataobject_column_type)
 
     # ask if any columns need to be blacklisted OR whitelisted
     all_column_names = list(
@@ -622,6 +753,11 @@ def apply_config(config: click.File) -> callable:
             elif yml["path_column"]["path_type"] == "relative":
                 sheet = chain_collection_and_filename(
                     sheet, path_column_name, yml["path_column"]["workdir"]
+                )
+            elif yml["path_column"]["path_type"] == "pattern":
+                env = create_jinja_environment_with_filters()
+                sheet = create_path_based_on_pattern(
+                    sheet, yml["path_column"]["pattern"], env
                 )
             else:
                 sheet = sheet.rename(columns={path_column_name: DATAOBJECT})

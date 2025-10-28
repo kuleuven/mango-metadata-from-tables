@@ -67,6 +67,20 @@ testcases = [
         "configuration_file": "testdata/testdata_multiple_values_multiple_sheets.xlsx.yml",
         "intended_results_file": "testdata/testdata_multiple_values_multiple_sheets.xlsx.json",
     },
+    {
+        # testcase for building a path based on other columns
+        # csv containing a number of columns to build the path from
+        "input_file": "testdata/testdata_path_from_columns.csv",
+        "configuration_file": "testdata/testdata_path_from_columns.csv.yml",
+        "intended_results_file": "testdata/testdata_path_from_columns.csv.json",
+    },
+    {
+        # testcase for building a path based on other columns with jinja filters applied
+        # csv containing a number of columns to build the path from
+        "input_file": "testdata/testdata_path_from_columns_with_filters.csv",
+        "configuration_file": "testdata/testdata_path_from_columns_with_filters.csv.yml",
+        "intended_results_file": "testdata/testdata_path_from_columns_with_filters.csv.json",
+    },
 ]
 
 
