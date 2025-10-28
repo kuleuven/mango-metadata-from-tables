@@ -28,6 +28,10 @@ def basic_metadata():
     }
 
 
+def get_schema_version(version: int) -> iRODSMeta:
+    return iRODSMeta("mgs.test.__version__", f"{version}.0.0")
+
+
 def namespace_metadata(avu: iRODSMeta) -> iRODSMeta:
     """Turn an AVU into its schema counterpart ('test' schema)."""
     return iRODSMeta(f"mgs.test.{avu.name}", avu.value)
@@ -156,12 +160,14 @@ def test_avus(avus, basic_metadata, current_cases):
             # case: the valid schema matches all data
             expected_output = {
                 dataobject: namespace_all_metadata(list_of_avus)
+                + [get_schema_version(1)]
                 for dataobject, list_of_avus in basic_metadata.items()
             }
         else:
             # case: partial-match schema
             expected_output = {
                 dataobject: namespace_partial_metadata(list_of_avus)
+                + [get_schema_version(2)]
                 for dataobject, list_of_avus in basic_metadata.items()
             }
             if config["exclude_other_metadata"]:

@@ -190,9 +190,9 @@ def dict_to_avus(
                     else "It will be added as non-schema metadata."
                 )
                 console.print(f"{line1} {line2}")
-        schema_avus = schema.to_avus(
-            valid_schema_metadata
-        )  # it could also be with just dict
+        schema_avus = schema.to_avus(valid_schema_metadata) + [
+            iRODSMeta(f"{schema.prefix}.{schema.name}.__version__", schema.version)
+        ]  # it could also be with just dict
 
         # create empty dict if other metadata is ignored; otherwise dict of metadata that did not pass
         def choose_other_metadata(k):
