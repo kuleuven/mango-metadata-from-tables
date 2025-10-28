@@ -20,6 +20,23 @@ basic_examples = [
     },
 ]
 
+# this could be expanded to test other filters eventually
+path_from_columns_examples = [
+    {
+        "id": "basic",
+        "input_file": "testdata/testdata_path_from_columns.csv",
+        "pattern": "/icts/home/datateam_icts_icts_test/mango-metadata-from-tables/{{size}}_shapes/a_{{color}}_{{shape}}.jpg",
+    },
+    {
+        "id": "date_filter",
+        "input_file": "testdata/testdata_path_from_columns_with_filters.csv",
+        "pattern": (
+            "/icts/home/datateam_icts_icts_test/mango-metadata-from-tables/"
+            "{{ size }}_shapes/{{ shape|lower }}_{{ date|date_format(input_format='%d/%m/%Y',output_format='%d%m%Y')}}.jpg"
+        ),
+    },
+]
+
 
 default_config = {
     "path_column": {"column_name": "dataobject", "path_type": "absolute"},
@@ -73,6 +90,20 @@ def case_multiple_values_multiple_sheets():
         }
     )
     return "testdata/testdata_multiple_values_multiple_sheets.xlsx", config_as_file
+
+
+@parametrize("mapping", path_from_columns_examples, idgen=lambda mapping: mapping["id"])
+def case_path_from_columns(mapping):
+    config_as_file = config_dict_to_yaml(
+        {
+            "path_column": {
+                "path_type": "pattern",
+                "column_name": None,
+                "pattern": mapping["pattern"],
+            }
+        }
+    )
+    return mapping["input_file"], config_as_file
 
 
 @parametrize(

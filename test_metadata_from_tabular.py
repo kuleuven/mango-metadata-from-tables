@@ -29,6 +29,49 @@ def basic_metadata():
     }
 
 
+@fixture
+def pattern_path_metadata():
+    main_coll = "/icts/home/datateam_icts_icts_test/mango-metadata-from-tables"
+    results = {
+        "testdata/testdata_path_from_columns.csv": [
+            {"path": "small_shapes/a_green_star.jpg", "shape": "star"},
+            {"path": "big_shapes/a_red_heart.jpg", "shape": "heart"},
+        ],
+        "testdata/testdata_path_from_columns_with_filters.csv": [
+            {
+                "path": "small_shapes/star_06121992.jpg",
+                "shape": "staR",
+                "date": "06/12/1992",
+            },
+            {
+                "path": "big_shapes/heart_05072010.jpg",
+                "shape": "HEART",
+                "date": "05/07/2010",
+            },
+        ],
+    }
+    avus_0 = [
+        iRODSMeta("size", "small"),
+        iRODSMeta("color", "green"),
+    ]
+    avus_1 = [
+        iRODSMeta("size", "big"),
+        iRODSMeta("color", "red"),
+    ]
+
+    def get_paths_and_avus(items):
+        path_0 = items[0].pop("path")
+        path_1 = items[1].pop("path")
+        return {
+            f"{main_coll}/{path_0}": avus_0
+            + [iRODSMeta(k, v) for k, v in items[0].items()],
+            f"{main_coll}/{path_1}": avus_1
+            + [iRODSMeta(k, v) for k, v in items[1].items()],
+        }
+
+    return {k: get_paths_and_avus(v) for k, v in results.items()}
+
+
 def get_schema_version(version: int) -> iRODSMeta:
     return iRODSMeta("mgs.test.__version__", f"{version}.0.0")
 
@@ -135,7 +178,7 @@ def avus(input_file: str, config: io.StringIO) -> dict:
     return results
 
 
-def test_avus(avus, basic_metadata, current_cases):
+def test_avus(avus, basic_metadata, pattern_path_metadata, current_cases):
     case_id, case_fun, config = current_cases["avus"]["config"]
 
     if case_id == "basic":
@@ -187,6 +230,8 @@ def test_avus(avus, basic_metadata, current_cases):
                     ]
                     for dataobject, list_of_avus in expected_output.items()
                 }
+    elif case_id == "path_from_columns":
+        expected_output = pattern_path_metadata[config["mapping"]["input_file"]]
 
     for data_object, list_of_avus in avus.items():
         # sort arrays to make sure the equivalence works
