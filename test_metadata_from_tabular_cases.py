@@ -83,16 +83,18 @@ def case_multiple_values_multiple_sheets():
         "file_does_not_exist",
     ],
 )
-@parametrize("exclude_other_metadata", [True, False])
-@parametrize("ignore_invalid_schema_metadata", [True, False])
-def case_schema_metadata(path, exclude_other_metadata, ignore_invalid_schema_metadata):
+@parametrize("exclude_non_schema_metadata", [True, False])
+@parametrize("exclude_invalid_schema_metadata", [True, False])
+def case_schema_metadata(
+    path, exclude_non_schema_metadata, exclude_invalid_schema_metadata
+):
     input_file = "testdata/testdata.csv"
     custom_config = {
         "separator": ";",
         "mango_schema": {
             "path": path,
-            "exclude_other_metadata": exclude_other_metadata,
-            "ignore_invalid_schema_metadata": ignore_invalid_schema_metadata,
+            "exclude_non_schema_metadata": exclude_non_schema_metadata,
+            "exclude_invalid_schema_metadata": exclude_invalid_schema_metadata,
         },
     }
     return input_file, config_dict_to_yaml(custom_config)
@@ -105,8 +107,8 @@ def error_schema_metadata():
         "separator": ";",
         "mango_schema": {
             "path": "testdata/test-1.0.0-published.json",
-            "exclude_other_metadata": True,
-            "ignore_invalid_schema_metadata": True,
+            "exclude_non_schema_metadata": True,
+            "exclude_invalid_schema_metadata": True,
         },
     }
     err_msg = "None of the sheets contain all the required fields of the schema."

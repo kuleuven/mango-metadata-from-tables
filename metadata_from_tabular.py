@@ -19,6 +19,8 @@ import yaml
 from mango_mdschema import Schema
 
 DATAOBJECT = "dataobject"
+EXCLUDE_NONSCHEMA_MD = "exclude_non_schema_metadata"
+EXCLUDE_INVALID_SCHEMA_MD = "exclude_invalid_schema_metadata"
 
 
 # region OpenExcel
@@ -168,8 +170,8 @@ def unlist_value(value: list, field) -> str | int:
 def dict_to_avus(
     row: dict,
     schema: Schema = None,
-    ignore_non_schema: bool = False,
-    ignore_invalid_md: bool = True,
+    exclude_non_schema_metadata: bool = True,
+    exclude_invalid_schema_metadata: bool = False,
 ) -> list[iRODSMeta]:
     """Convert a dictionary of metadata name-value pairs into a list of iRODSMeta"""
     if schema is not None:
@@ -186,30 +188,39 @@ def dict_to_avus(
                 line1 = f"Found a value '{dict_to_validate[k]}' of column '{k}' that does not match the schema."
                 line2 = (
                     "It will be excluded."
-                    if ignore_invalid_md
+                    if exclude_invalid_schema_metadata
                     else "It will be added as non-schema metadata."
                 )
                 console.print(f"{line1} {line2}")
-        schema_avus = schema.to_avus(valid_schema_metadata) + [
-            iRODSMeta(f"{schema.prefix}.{schema.name}.__version__", schema.version)
-        ]  # it could also be with just dict
+        schema_avus = schema.to_avus(valid_schema_metadata)
+        if len(schema_avus) > 0:
+            schema_avus += [
+                iRODSMeta(f"{schema.prefix}.{schema.name}.__version__", schema.version)
+            ]
 
         # create empty dict if other metadata is ignored; otherwise dict of metadata that did not pass
-        def choose_other_metadata(k):
-            if k not in valid_schema_metadata:
-                return True
-            if not ignore_invalid_md and valid_schema_metadata.get(k, None) is None:
-                return True
-            return False
+        def is_invalid_schema_metadata(k):
+            return k in dict_to_validate and valid_schema_metadata.get(k, None) is None
 
-        other_metadata = (
+        def is_nonschema_metadata(k):
+            return k not in schema.fields
+
+        invalid_schema_metadata = (
             {}
-            if ignore_non_schema
-            else {k: v for k, v in row.items() if choose_other_metadata(k)}
+            if exclude_invalid_schema_metadata
+            else {k: v for k, v in row.items() if is_invalid_schema_metadata(k)}
         )
+        nonschema_metadata = (
+            {}
+            if exclude_non_schema_metadata
+            else {k: v for k, v in row.items() if is_nonschema_metadata(k)}
+        )
+
+        other_metadata = {**nonschema_metadata, **invalid_schema_metadata}
     else:  # if there is no schema
         schema_avus = []  # no schema metadata
         other_metadata = row  # all metadata
+
     non_schema_avus = [
         iRODSMeta(str(key), str(value_item))
         for key, value in other_metadata.items()  # empty if all metadata is from schema or the other metadata is ignored
@@ -263,7 +274,8 @@ console = Console()
 
 def explain_multiple_choice():
     console.print(
-        "Type one answer at a time, pressing Enter afterwards. Press Enter twice when you are done.",
+        "Type one answer at a time, pressing Enter afterwards. \
+            Press Enter twice when you are done.",
         style="italic magenta",
     )
 
@@ -325,7 +337,8 @@ def classify_dataobject_column(dataobject_column: str) -> dict:
     workdir = ""
     while not re.match("/[a-z_]+/home/[^/]+/?", workdir):
         workdir = Prompt.ask(
-            "What is the absolute path of the collection where we can find these data objects? (It should start with `/{zone}/home/{project}/...`)"
+            "What is the absolute path of the collection where we can find these data objects? \
+                (It should start with `/{zone}/home/{project}/...`)"
         )
     if path_type == "relative":
         console.print(
@@ -336,7 +349,8 @@ def classify_dataobject_column(dataobject_column: str) -> dict:
     else:
         console.print(
             Markdown(
-                f"Great! Data objects will be found by querying the contents of `{dataobject_column}` within `{workdir}`!"
+                f"Great! Data objects will be found by querying the contents \
+                    of `{dataobject_column}` within `{workdir}`!"
             )
         )
     return {"path_type": path_type, "workdir": workdir}
@@ -472,7 +486,8 @@ def setup(example, output, sep=",", irods=False):
         if len(column_names) > 1:
             break
         update_separator = Confirm.ask(
-            f"Your sheet has only one column: `{column_names[0]}`, would you like to provide another separator?"
+            f"Your sheet has only one column: `{column_names[0]}`, \
+                would you like to provide another separator?"
         )
         if update_separator:
             sep = Prompt.ask("Which separator would you like to try now?") or " "
@@ -580,22 +595,27 @@ def setup(example, output, sep=",", irods=False):
                 print("Changed your mind? We won't use a schema then!")
                 break
         if schema_file:
-            ignore_other_metadata = Confirm.ask(
-                "Should we discard the columns that don't match the schema? (If you say no, they will be added as non-schema metadata):"
+            invalid_schema_metadata_question = (
+                "Should we discard invalid schema values? "
+                "(Otherwise, they will be added as non-schema metadata, "
+                "e.g. 'size=medium' instead of 'mgs.schema.size=medium')"
+            )
+            exclude_invalid_schema_metadata = Confirm.ask(
+                invalid_schema_metadata_question, default=False
+            )
+            nonschema_metadata_question = (
+                "Should we discard the columns not covered by schema? "
+                "(If you say no, they will be added as non-schema metadata):"
+            )
+
+            exclude_nonschema_metadata = Confirm.ask(
+                nonschema_metadata_question, default=True
             )
             for_yaml["mango_schema"] = {
                 "path": schema_file,
-                "exclude_other_metadata": ignore_other_metadata,
+                EXCLUDE_NONSCHEMA_MD: exclude_nonschema_metadata,
+                EXCLUDE_INVALID_SCHEMA_MD: exclude_invalid_schema_metadata,
             }
-            if ignore_other_metadata:
-                invalid_metadata_example = (
-                    "e.g. 'size=medium' instead of 'mgs.schema.size=medium'"
-                )
-                for_yaml["mango_schema"]["ignore_invalid_schema_metadata"] = (
-                    Confirm.ask(
-                        f"Should we discard invalid schema values? (Otherwise, they will be added as non-schema metadata, {invalid_metadata_example})"
-                    )
-                )
 
     # create yaml from the dictionary
     yml = yaml.dump(for_yaml, default_flow_style=False, indent=2)
@@ -661,7 +681,7 @@ def run(filename, config, dry_run=False):
                 description=progress_message,
             ):
                 if not dry_run:
-                    res = apply_metadata_to_data_object(
+                    simulated_avus = apply_metadata_to_data_object(
                         dataobject, md_dict, sheet_schema_instructions, session
                     )
                 else:
@@ -669,15 +689,15 @@ def run(filename, config, dry_run=False):
                         f"Creating the following AVUs for dataobject {dataobject}:"
                     )
                     avus = dict_to_avus(md_dict, **sheet_schema_instructions)
-                    res = len(avus)
+                    simulated_avus = len(avus)
                     print(avus)
                     console.print("\n")
-                if res:
+                if simulated_avus:
                     n += 1
-                    if max_avus is None or res > max_avus:
-                        max_avus = res
-                    if min_avus is None or res < min_avus:
-                        min_avus = res
+                    if max_avus is None or simulated_avus > max_avus:
+                        max_avus = simulated_avus
+                    if min_avus is None or simulated_avus < min_avus:
+                        min_avus = simulated_avus
                 else:
                     errors += 1
 
@@ -688,7 +708,7 @@ def run(filename, config, dry_run=False):
                 Markdown(
                     # This calculation may not be correct anymore in case of multiple values,
                     # since the md_dict of each object can now have a different length
-                    f"{'Created' if dry_run else 'Applied'} {avu_length_range} AVUs for each of {n} data objects"
+                    f"{'Simulated' if dry_run else 'Applied'} {avu_length_range} AVUs for each of {n} data objects"
                 )
             )
             if errors > 0:
@@ -763,9 +783,9 @@ def apply_config(config: click.File) -> callable:
         if os.path.exists(schema_info.get("path", "")):
             schema_instructions = {
                 "schema": Schema(schema_info["path"]),
-                "ignore_non_schema": schema_info.get("exclude_other_metadata", False),
-                "ignore_invalid_md": schema_info.get(
-                    "ignore_invalid_schema_metadata", True
+                EXCLUDE_NONSCHEMA_MD: schema_info.get(EXCLUDE_NONSCHEMA_MD, True),
+                EXCLUDE_INVALID_SCHEMA_MD: schema_info.get(
+                    EXCLUDE_INVALID_SCHEMA_MD, False
                 ),
             }
 

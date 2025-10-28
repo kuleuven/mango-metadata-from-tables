@@ -171,18 +171,20 @@ def test_avus(avus, basic_metadata, current_cases):
                 + [get_schema_version(2)]
                 for dataobject, list_of_avus in basic_metadata.items()
             }
-            if config["exclude_other_metadata"]:
-                # case: non-schema metadata is excluded
-                expected_output = {
-                    dataobject: [
-                        avu for avu in list_of_avus if avu.name.startswith("mgs")
-                    ]
-                    for dataobject, list_of_avus in expected_output.items()
-                }
-            elif config["ignore_invalid_schema_metadata"]:
-                # case: only invalid schema metadata is excluded
+            if config[metadata_from_tabular.EXCLUDE_INVALID_SCHEMA_MD]:
+                # cases: invalid schema metadata is excluded
                 expected_output = {
                     dataobject: [avu for avu in list_of_avus if avu.name != "size"]
+                    for dataobject, list_of_avus in expected_output.items()
+                }
+            if config[metadata_from_tabular.EXCLUDE_NONSCHEMA_MD]:
+                # cases: non-schema metadata is excluded
+                expected_output = {
+                    dataobject: [
+                        avu
+                        for avu in list_of_avus
+                        if avu.name.startswith("mgs") or avu.name == "size"
+                    ]
                     for dataobject, list_of_avus in expected_output.items()
                 }
 
