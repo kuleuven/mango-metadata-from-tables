@@ -96,3 +96,18 @@ def case_schema_metadata(path, exclude_other_metadata, ignore_invalid_schema_met
         },
     }
     return input_file, config_dict_to_yaml(custom_config)
+
+
+# @todo add tests for errors!
+def error_schema_metadata():
+    input_file = "testdata/testdata_missing_column.csv"
+    custom_config = {
+        "separator": ";",
+        "mango_schema": {
+            "path": "testdata/test-1.0.0-published.json",
+            "exclude_other_metadata": True,
+            "ignore_invalid_schema_metadata": True,
+        },
+    }
+    err_msg = "None of the sheets contain all the required fields of the schema."
+    return input_file, config_dict_to_yaml(custom_config), KeyError, err_msg

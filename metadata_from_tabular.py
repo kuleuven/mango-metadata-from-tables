@@ -642,7 +642,13 @@ def run(filename, config, dry_run=False):
         multivalue_columns = processed_config_data["multivalue_columns"]
         multivalue_separator = processed_config_data["multivalue_separator"]
         schema_instructions = processed_config_data["schema_instructions"]
+        sheets_for_schemas = validate_schema_columns(
+            sheets, schema_instructions.get("schema", None)
+        )
         for sheetname, sheet in sheets.items():
+            sheet_schema_instructions = (
+                schema_instructions if sheetname in sheets_for_schemas else {}
+            )
             progress_message = f"Adding metadata from {sheetname + ' in ' if len(sheets) > 1 else ''}`{filename}`..."
             n = 0
             errors = 0
@@ -656,13 +662,13 @@ def run(filename, config, dry_run=False):
             ):
                 if not dry_run:
                     res = apply_metadata_to_data_object(
-                        dataobject, md_dict, schema_instructions, session
+                        dataobject, md_dict, sheet_schema_instructions, session
                     )
                 else:
                     console.print(
                         f"Creating the following AVUs for dataobject {dataobject}:"
                     )
-                    avus = dict_to_avus(md_dict, **schema_instructions)
+                    avus = dict_to_avus(md_dict, **sheet_schema_instructions)
                     res = len(avus)
                     print(avus)
                     console.print("\n")
@@ -690,6 +696,27 @@ def run(filename, config, dry_run=False):
                     f"{errors} data objects were skipped because the paths were not valid!",
                     style="red bold",
                 )
+
+
+def validate_schema_columns(sheets: dict[pd.DataFrame], schema: Schema) -> list[str]:
+    if schema is None:
+        return list(sheets.keys())
+
+    required_fields = [
+        field_name
+        for field_name, field in schema.fields.items()
+        if field.required and not field.default
+    ]
+    sheets_for_schema = [
+        sheetname
+        for sheetname, sheet in sheets.items()
+        if all(field_name in sheet.columns for field_name in required_fields)
+    ]
+    if len(sheets_for_schema) == 0:
+        raise KeyError(
+            "None of the sheets contain all the required fields of the schema."
+        )
+    return sheets_for_schema
 
 
 def apply_config(config: click.File) -> callable:
@@ -741,6 +768,7 @@ def apply_config(config: click.File) -> callable:
                     "ignore_invalid_schema_metadata", True
                 ),
             }
+
         else:
             console.print("No schema found, metadata will be added as is.")
             schema_instructions = {}
