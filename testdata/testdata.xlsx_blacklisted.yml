@@ -1,9 +1,0 @@
-blacklist:
-- shape
-path_column:
-  column_name: dataobject
-  path_type: absolute
-separator: ','
-sheets:
-- Tabelle1
-

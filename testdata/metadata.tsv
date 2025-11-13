@@ -1,4 +1,0 @@
-filename	source_code	original_dataset	os
-20240508_ses01_kim.txt	script.py	small_data.csv	Linux
-20211205_ses01_lukas.txt	script.R	big_old_data.csv	Windows
-20240630_ses02_eve.txt	new_script.py	small_data.csv	Mac

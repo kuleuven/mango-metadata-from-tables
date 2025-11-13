@@ -16,11 +16,14 @@ from rich.markdown import Markdown
 from rich.syntax import Syntax
 from rich.progress import track
 import yaml
+from mango_mdschema import Schema
 import jinja2
 import datetime
 
 
 DATAOBJECT = "dataobject"
+EXCLUDE_NONSCHEMA_MD = "exclude_non_schema_metadata"
+EXCLUDE_INVALID_SCHEMA_MD = "exclude_invalid_schema_metadata"
 
 
 # region OpenExcel
@@ -72,7 +75,7 @@ def parse_tabular_file(path: str, session=None, separator: str = ","):
         # Local excel files are binary and should be opened with 'rb'.
         # However, iRODS implemented their 'open' method differently,
         # and there you should use just 'r' instead
-        reading_mode = "r" if type(file) == iRODSDataObject else "rb"
+        reading_mode = "r" if isinstance(file, iRODSDataObject) else "rb"
         with file.open(reading_mode) as f:
             sheets = pd.read_excel(f, sheet_name=None)
         if any(x.strip() != x for x in sheets.keys()):
@@ -207,15 +210,73 @@ def create_jinja_environment_with_filters():
 # region Core
 
 
-def dict_to_avus(row: dict) -> Generator[iRODSMeta]:
-    """Convert a dictionary of metadata name-value pairs into a generator of iRODSMeta"""
-    avus = (
+def unlist_value(value: list, field) -> str | int:
+    """Unlist values for non repeatable fields"""
+    if len(value) == 1 and not field.repeatable:
+        return value[0]
+
+
+def dict_to_avus(
+    row: dict,
+    schema: Schema = None,
+    exclude_non_schema_metadata: bool = True,
+    exclude_invalid_schema_metadata: bool = False,
+) -> list[iRODSMeta]:
+    """Convert a dictionary of metadata name-value pairs into a list of iRODSMeta"""
+    if schema is not None:
+        dict_to_validate = {
+            k: unlist_value(v, schema.fields[k])
+            for k, v in row.items()
+            if k in schema.fields
+        }
+        valid_schema_metadata = schema.validate(
+            dict_to_validate
+        )  # dict with metadata that passed the schema
+        for k, v in valid_schema_metadata.items():
+            if v is None:
+                line1 = f"Found a value '{dict_to_validate[k]}' of column '{k}' that does not match the schema."
+                line2 = (
+                    "It will be excluded."
+                    if exclude_invalid_schema_metadata
+                    else "It will be added as non-schema metadata."
+                )
+                console.print(f"{line1} {line2}")
+        schema_avus = schema.to_avus(valid_schema_metadata)
+        if len(schema_avus) > 0:
+            schema_avus += [
+                iRODSMeta(f"{schema.prefix}.{schema.name}.__version__", schema.version)
+            ]
+
+        # create empty dict if other metadata is ignored; otherwise dict of metadata that did not pass
+        def is_invalid_schema_metadata(k):
+            return k in dict_to_validate and valid_schema_metadata.get(k, None) is None
+
+        def is_nonschema_metadata(k):
+            return k not in schema.fields
+
+        invalid_schema_metadata = (
+            {}
+            if exclude_invalid_schema_metadata
+            else {k: v for k, v in row.items() if is_invalid_schema_metadata(k)}
+        )
+        nonschema_metadata = (
+            {}
+            if exclude_non_schema_metadata
+            else {k: v for k, v in row.items() if is_nonschema_metadata(k)}
+        )
+
+        other_metadata = {**nonschema_metadata, **invalid_schema_metadata}
+    else:  # if there is no schema
+        schema_avus = []  # no schema metadata
+        other_metadata = row  # all metadata
+
+    non_schema_avus = [
         iRODSMeta(str(key), str(value_item))
-        for key, value in row.items()
+        for key, value in other_metadata.items()  # empty if all metadata is from schema or the other metadata is ignored
         for value_item in value
         if not pd.isna(value_item)
-    )
-    return avus
+    ]
+    return schema_avus + non_schema_avus
 
 
 def generate_rows(
@@ -237,20 +298,20 @@ def generate_rows(
         yield (row[DATAOBJECT], md_dict)
 
 
-def apply_metadata_to_data_object(path: str, avu_dict: dict, session: iRODSSession):
+def apply_metadata_to_data_object(
+    path: str, avu_dict: dict, schema_instructions: dict, session: iRODSSession
+):
     """Add metadata from a dictionary to a given data object"""
     try:
         obj = session.data_objects.get(path)
+        avus = dict_to_avus(avu_dict, **schema_instructions)
         obj.metadata.apply_atomic_operations(
-            *[
-                AVUOperation(operation="add", avu=item)
-                for item in dict_to_avus(avu_dict)
-            ]
+            *[AVUOperation(operation="add", avu=item) for item in avus]
         )
-        return True
+        return len(avus)
     except Exception as e:
         print(e)
-        return False
+        return 0
 
 
 # endregion
@@ -262,7 +323,8 @@ console = Console()
 
 def explain_multiple_choice():
     console.print(
-        "Type one answer at a time, pressing Enter afterwards. Press Enter twice when you are done.",
+        "Type one answer at a time, pressing Enter afterwards. \
+            Press Enter twice when you are done.",
         style="italic magenta",
     )
 
@@ -412,7 +474,8 @@ def classify_dataobject_column(dataobject_column: str) -> dict:
     workdir = ""
     while not re.match("/[a-z_]+/home/[^/]+/?", workdir):
         workdir = Prompt.ask(
-            "What is the absolute path of the collection where we can find these data objects? (It should start with `/{zone}/home/{project}/...`)"
+            "What is the absolute path of the collection where we can find these data objects? \
+                (It should start with `/{zone}/home/{project}/...`)"
         )
     if path_type == "relative":
         console.print(
@@ -423,7 +486,8 @@ def classify_dataobject_column(dataobject_column: str) -> dict:
     else:
         console.print(
             Markdown(
-                f"Great! Data objects will be found by querying the contents of `{dataobject_column}` within `{workdir}`!"
+                f"Great! Data objects will be found by querying the contents \
+                    of `{dataobject_column}` within `{workdir}`!"
             )
         )
     return {"path_type": path_type, "workdir": workdir}
@@ -470,7 +534,7 @@ def ask_multivalue_columns(columns: list) -> list:
     # creating a 'choices'-list so we don't modify the original columns list
     while any(c for c in choices):
         ans = Prompt.ask(
-            f"Which column(s) can contain multiple values?",
+            "Which column(s) can contain multiple values?",
             choices=choices,
         )
         if ans:
@@ -559,7 +623,8 @@ def setup(example, output, sep=",", irods=False):
         if len(column_names) > 1:
             break
         update_separator = Confirm.ask(
-            f"Your sheet has only one column: `{column_names[0]}`, would you like to provide another separator?"
+            f"Your sheet has only one column: `{column_names[0]}`, \
+                would you like to provide another separator?"
         )
         if update_separator:
             sep = Prompt.ask("Which separator would you like to try now?") or " "
@@ -650,6 +715,39 @@ def setup(example, output, sep=",", irods=False):
         for_yaml["multivalue_separator"] = multivalue_separator
         for_yaml["multivalue_columns"] = multivalue_columns
 
+    # ask about schema metadata
+    if Confirm.ask("Do you have a ManGO metadata schema to validate your metadata?"):
+        # for now, only support local schemas, we are not checking in with iRODS (yet)
+        schema_file = ""
+        while not os.path.exists(schema_file):
+            # TODO add mango-mdschema validation OF the schema file
+            schema_file = Prompt.ask("Please provide a valid path for your schema: ")
+            if not schema_file:
+                print("Changed your mind? We won't use a schema then!")
+                break
+        if schema_file:
+            invalid_schema_metadata_question = (
+                "Should we discard invalid schema values? "
+                "(Otherwise, they will be added as non-schema metadata, "
+                "e.g. 'size=medium' instead of 'mgs.schema.size=medium')"
+            )
+            exclude_invalid_schema_metadata = Confirm.ask(
+                invalid_schema_metadata_question, default=False
+            )
+            nonschema_metadata_question = (
+                "Should we discard the columns not covered by schema? "
+                "(If you say no, they will be added as non-schema metadata):"
+            )
+
+            exclude_nonschema_metadata = Confirm.ask(
+                nonschema_metadata_question, default=True
+            )
+            for_yaml["mango_schema"] = {
+                "path": schema_file,
+                EXCLUDE_NONSCHEMA_MD: exclude_nonschema_metadata,
+                EXCLUDE_INVALID_SCHEMA_MD: exclude_invalid_schema_metadata,
+            }
+
     # create yaml from the dictionary
     yml = yaml.dump(for_yaml, default_flow_style=False, indent=2)
     # Make a group and indicate where it is saved
@@ -694,30 +792,54 @@ def run(filename, config, dry_run=False):
         sheets = processed_config_data["sheets"]
         multivalue_columns = processed_config_data["multivalue_columns"]
         multivalue_separator = processed_config_data["multivalue_separator"]
+        schema_instructions = processed_config_data["schema_instructions"]
+        sheets_for_schemas = validate_schema_columns(
+            sheets, schema_instructions.get("schema", None)
+        )
         for sheetname, sheet in sheets.items():
+            sheet_schema_instructions = (
+                schema_instructions if sheetname in sheets_for_schemas else {}
+            )
             progress_message = f"Adding metadata from {sheetname + ' in ' if len(sheets) > 1 else ''}`{filename}`..."
             n = 0
             errors = 0
+            min_avus = None
+            max_avus = None
 
             # loop over each row printing a progress bar
             for dataobject, md_dict in track(
                 generate_rows(sheet, multivalue_columns, multivalue_separator),
                 description=progress_message,
             ):
-                res = True
                 if not dry_run:
-                    res = apply_metadata_to_data_object(dataobject, md_dict, session)
-                if res:
+                    simulated_avus = apply_metadata_to_data_object(
+                        dataobject, md_dict, sheet_schema_instructions, session
+                    )
+                else:
+                    console.print(
+                        f"Creating the following AVUs for dataobject {dataobject}:"
+                    )
+                    avus = dict_to_avus(md_dict, **sheet_schema_instructions)
+                    simulated_avus = len(avus)
+                    print(avus)
+                    console.print("\n")
+                if simulated_avus:
                     n += 1
+                    if max_avus is None or simulated_avus > max_avus:
+                        max_avus = simulated_avus
+                    if min_avus is None or simulated_avus < min_avus:
+                        min_avus = simulated_avus
                 else:
                     errors += 1
 
+            avu_length_range = (
+                max_avus if min_avus == max_avus else f"{min_avus} to {max_avus}"
+            )
             console.print(
                 Markdown(
                     # This calculation may not be correct anymore in case of multiple values,
                     # since the md_dict of each object can now have a different length
-                    f"{'Created' if dry_run else 'Applied'} {len(md_dict)} AVUs for each of {n} data objects, with the following keys:\n\n"
-                    + "\n\n".join(f"- **{k}**" for k in md_dict.keys())
+                    f"{'Simulated' if dry_run else 'Applied'} {avu_length_range} AVUs for each of {n} data objects"
                 )
             )
             if errors > 0:
@@ -725,6 +847,27 @@ def run(filename, config, dry_run=False):
                     f"{errors} data objects were skipped because the paths were not valid!",
                     style="red bold",
                 )
+
+
+def validate_schema_columns(sheets: dict[pd.DataFrame], schema: Schema) -> list[str]:
+    if schema is None:
+        return list(sheets.keys())
+
+    required_fields = [
+        field_name
+        for field_name, field in schema.fields.items()
+        if field.required and not field.default
+    ]
+    sheets_for_schema = [
+        sheetname
+        for sheetname, sheet in sheets.items()
+        if all(field_name in sheet.columns for field_name in required_fields)
+    ]
+    if len(sheets_for_schema) == 0:
+        raise KeyError(
+            "None of the sheets contain all the required fields of the schema."
+        )
+    return sheets_for_schema
 
 
 def apply_config(config: click.File) -> callable:
@@ -737,7 +880,7 @@ def apply_config(config: click.File) -> callable:
         sheets = parse_tabular_file(filename, session, yml.get("separator", None))
         sheets_to_return = {}
         for sheetname, sheet in sheets.items():
-            if not sheetname in yml["sheets"]:
+            if sheetname not in yml["sheets"]:
                 continue
             path_column_name = yml["path_column"]["column_name"]
             if yml["path_column"]["path_type"] == "part":
@@ -772,11 +915,25 @@ def apply_config(config: click.File) -> callable:
 
         multivalue_columns = yml.get("multivalue_columns", [])
         multivalue_separator = yml.get("multivalue_separator", "")
+        schema_info = yml.get("mango_schema", {})
+        if os.path.exists(schema_info.get("path", "")):
+            schema_instructions = {
+                "schema": Schema(schema_info["path"]),
+                EXCLUDE_NONSCHEMA_MD: schema_info.get(EXCLUDE_NONSCHEMA_MD, True),
+                EXCLUDE_INVALID_SCHEMA_MD: schema_info.get(
+                    EXCLUDE_INVALID_SCHEMA_MD, False
+                ),
+            }
+
+        else:
+            console.print("No schema found, metadata will be added as is.")
+            schema_instructions = {}
 
         processed_config_data = {
             "sheets": sheets_to_return,
             "multivalue_columns": multivalue_columns,
             "multivalue_separator": multivalue_separator,
+            "schema_instructions": schema_instructions,
         }
         return processed_config_data
 
