@@ -429,9 +429,12 @@ def classify_object_column(sheet_collection: dict) -> dict:
             if preview is None:
                 print("The pattern you provided is not valid.")
             else:
-                pattern_okay = Confirm.ask(
-                    f"""Based on the pattern you provided, the first row in your file contains the following path: {preview}.\n Does this look okay?"""
+                pattern_ok_message = (
+                    f"Based on the pattern you provided, the first row in your file contains the following path: {preview}."
+                    "\n Does this look okay?"
                 )
+                pattern_okay = Confirm.ask(pattern_ok_message)
+
         print(
             f"Great! Data objects will be found by combining columns and strings in the following pattern: {pattern}"
         )
@@ -441,7 +444,8 @@ def classify_object_column(sheet_collection: dict) -> dict:
         if path_type in ["relative", "part"]:
             while not re.match("/[a-z_]+/home/[^/]+/?", workdir):
                 workdir = Prompt.ask(
-                    "What is the absolute path of the collection where we can find these data objects? (It should start with `/{zone}/home/{project}/...`)"
+                    "What is the absolute path of the collection where we can find these data objects? \
+                    (It should start with `/{zone}/home/{project}/...`)"
                 )
         if path_type == "relative":
             console.print(
@@ -612,7 +616,6 @@ def setup(example, output, sep=",", irods=False):
 
     OUTPUT is the path where the configuration file will be saved.
     """
-    import re
     import yaml
 
     while True:

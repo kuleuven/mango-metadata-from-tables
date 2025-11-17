@@ -1,7 +1,0 @@
-path_column:
-  path_type: pattern
-  column_name: None
-  pattern: "/icts/home/datateam_icts_icts_test/mango-metadata-from-tables/{{size}}_shapes/a_{{color}}_{{shape}}.jpg"
-separator: ","
-sheets:
-- single_sheet
