@@ -5,6 +5,12 @@ from irods.meta import iRODSMeta
 from pytest_cases import parametrize
 
 
+def get_schema_version(version: int) -> iRODSMeta:
+    return iRODSMeta("mgs.test.__version__", f"{version}.0.0")
+
+
+# region inputs
+
 basic_examples = [
     {"input_file": "testdata/testdata.csv", "config": {"separator": ";"}},
     {"input_file": "testdata/testdata.xlsx", "config": {"sheets": ["Tabelle1"]}},
@@ -44,6 +50,17 @@ default_config = {
     "separator": ",",
     "sheets": ["single_sheet"],
 }
+
+
+def config_dict_to_yaml(config_dict: dict) -> io.StringIO:
+    config = {k: v for k, v in default_config.items()}  # copy default
+    config.update(config_dict)  # update with specific config for this testcase
+    return io.StringIO(yaml.dump(config))
+
+
+# endregion
+
+# region outputs
 
 basic_metadata = {
     "/icts/home/datateam_icts_icts_test/mango-metadata-from-tables/file1.txt": [
@@ -91,10 +108,6 @@ pattern_path_output = {
         ],
     },
 }
-
-
-def get_schema_version(version: int) -> iRODSMeta:
-    return iRODSMeta("mgs.test.__version__", f"{version}.0.0")
 
 
 def namespace_metadata(avu: iRODSMeta) -> iRODSMeta:
@@ -173,10 +186,9 @@ def multiple_values_multiple_sheets(metadata: dict) -> dict:
     return md_copy
 
 
-def config_dict_to_yaml(config_dict: dict) -> io.StringIO:
-    config = {k: v for k, v in default_config.items()}  # copy default
-    config.update(config_dict)  # update with specific config for this testcase
-    return io.StringIO(yaml.dump(config))
+# endregion
+
+# region cases
 
 
 @parametrize("mapping", basic_examples, idgen=lambda mapping: mapping["input_file"])
@@ -315,6 +327,9 @@ def case_schema_metadata(
                 for dataobject, list_of_avus in expected_output.items()
             }
     return input_file, config_dict_to_yaml(custom_config), expected_output
+
+
+# endregion
 
 
 # @todo add tests for errors!
