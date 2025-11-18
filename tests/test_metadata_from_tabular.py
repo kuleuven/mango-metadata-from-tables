@@ -4,7 +4,7 @@ from irods.meta import iRODSMeta
 from pytest_cases import fixture, parametrize_with_cases
 import pytest
 
-import metadata_from_tabular
+import mango_metadata_from_tables.metadata_from_tabular as metadata_from_tabular
 
 
 @fixture
