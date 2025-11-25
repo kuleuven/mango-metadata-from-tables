@@ -11,7 +11,7 @@ requires-python = ">=3.10"
 dependencies = []
 
 [project.scripts]
-mango-metadata-from-tables = "mango_metadata_from_tables:main"
+mango-metadata-from-tables = "mango_metadata_from_tables.cli:mdtab"
 
 [build-system]
 requires = ["uv_build>=0.9.10,<0.10.0"]
