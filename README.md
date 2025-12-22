@@ -4,13 +4,16 @@ Use this module to process tabular files in which each row represents an iRODS d
 and each column contains either an identifier or metadata to add to this data object.
 It supports plain text files and Excel files, which could be stored locally or in iRODS itself.
 
-As always, create a virtual environment and install the dependencies described in the [requirements file](./requirements.txt):
+To get started, create a virtual environment with pip and install the dependencies described in the [requirements file](./requirements.txt):
 
 ```sh
 python -m venv venv
-. venv/bin/activate
-pip install -r requirements.txt
+source venv/bin/activate
+pip install -e .
 ```
+
+Now, you can run the script with the command `mango-metadata-from-tables`.  
+
 
 ## Usage
 
@@ -44,8 +47,8 @@ data object. Note that this `run` command could then also be used on other tabul
 with the same properties as the original one.
 
 ```sh
-python metadata_from_tabular.py setup testdata/testdata.csv test-config.yaml --sep ";"
-python metadata_from_tabular.py run testdata/testdata.csv --config test-config.yaml --dry-run
+mango-metadata-from-tables setup testdata/testdata.csv test-config.yaml --sep ";"
+mango-metadata-from-tables run testdata/testdata.csv --config test-config.yaml --dry-run
 ```
 
 ### A larger Excel file with multiple sheets
@@ -56,8 +59,8 @@ how the Excel should be parsed and record the answers in a YAML configuration fi
 Then, with the `run` command we parse the Excel and simulate adding the metadata.
 
 ```sh
-python metadata_from_tabular.py setup testdata/bigger-testdata.xlsx bigger-test-config.yaml
-python metadata_from_tabular.py run testdata/bigger-testdata.xlsx --config bigger-test-config.yaml --dry-run
+mango-metadata-from-tables setup testdata/bigger-testdata.xlsx bigger-test-config.yaml
+mango-metadata-from-tables run testdata/bigger-testdata.xlsx --config bigger-test-config.yaml --dry-run
 ```
 
 ## `setup`
@@ -65,7 +68,7 @@ python metadata_from_tabular.py run testdata/bigger-testdata.xlsx --config bigge
 The configuration file can be created as follows:
 
 ```sh
-python metadata_from_tabular.py setup filename output_path
+mango-metadata-from-tables setup filename output_path
 ```
 
 In this case `filename` is the path to a tabular file (csv, tsv, Excel...),
@@ -73,7 +76,7 @@ stored either locally or in iRODS. If it lives in iRODS, the `--irods` flag shou
 so that an iRODS session is started:
 
 ```sh
-python metadata_from_tabular.py setup /zone/home/project/path/to/tabular output_path --irods
+mango-metadata-from-tables setup /zone/home/project/path/to/tabular output_path --irods
 ```
 
 If the tabular file is a plain text file, it is possible to specify a column separator
@@ -81,7 +84,7 @@ with the `--sep` option, which has "," as a default. If a wrong separator is pro
 the parser finds a single column, it will warn you and give you the possibility to correct it.
 
 ```sh
-python metadata_from_tabular.py setup testdata/testdata.csv test-output.yml --sep ";"
+mango-metadata-from-tables setup testdata/testdata.csv test-output.yml --sep ";"
 ```
 
 If the file can be found and opened as a dataframe, the user will be prompted with questions
@@ -101,7 +104,7 @@ Given a path to a tabular file with metadata and a YAML with the settings to pre
 metadata can be added with the `run` command:
 
 ```sh
-python metadata_from_tabular.py run path_to_tabular --config path/to/config.yml
+mango-metadata-from-tables  run path_to_tabular --config path/to/config.yml
 ```
 
 For testing purposes, it is possible to use
@@ -111,7 +114,7 @@ An iRODS session will be initiated always, so **make sure you have a valid activ
 
 
 ```sh
-python metadata_from_tabular.py run path_to_tabular --config path/to/config.yml --dry-run
+mango-metadata-from-tables  run path_to_tabular --config path/to/config.yml --dry-run
 ```
 
 It is not necessary to rerun both `setup` and `run` for each tabular file:

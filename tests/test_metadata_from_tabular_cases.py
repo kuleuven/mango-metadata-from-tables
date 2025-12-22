@@ -1,3 +1,4 @@
+import os
 import io
 import yaml
 
@@ -9,13 +10,19 @@ def get_schema_version(version: int) -> iRODSMeta:
     return iRODSMeta("mgs.test.__version__", f"{version}.0.0")
 
 
+TEST_DIR = os.path.dirname(os.path.abspath(__file__))
+TESTDATA_FOLDER = TEST_DIR + "/testdata"
+print(f"running tests from {TESTDATA_FOLDER}")
 # region inputs
 
 basic_examples = [
-    {"input_file": "testdata/testdata.csv", "config": {"separator": ";"}},
-    {"input_file": "testdata/testdata.xlsx", "config": {"sheets": ["Tabelle1"]}},
+    {"input_file": f"{TESTDATA_FOLDER}/testdata.csv", "config": {"separator": ";"}},
     {
-        "input_file": "testdata/testdata_relative_path.xlsx",
+        "input_file": f"{TESTDATA_FOLDER}/testdata.xlsx",
+        "config": {"sheets": ["Tabelle1"]},
+    },
+    {
+        "input_file": f"{TESTDATA_FOLDER}/testdata_relative_path.xlsx",
         "config": {
             "path_column": {
                 "column_name": "file",
@@ -31,12 +38,12 @@ basic_examples = [
 path_from_columns_examples = [
     {
         "id": "basic",
-        "input_file": "testdata/testdata_path_from_columns.csv",
+        "input_file": f"{TESTDATA_FOLDER}/testdata_path_from_columns.csv",
         "pattern": "/icts/home/datateam_icts_icts_test/mango-metadata-from-tables/{{size}}_shapes/a_{{color}}_{{shape}}.jpg",
     },
     {
         "id": "date_filter",
-        "input_file": "testdata/testdata_path_from_columns_with_filters.csv",
+        "input_file": f"{TESTDATA_FOLDER}/testdata_path_from_columns_with_filters.csv",
         "pattern": (
             "/icts/home/datateam_icts_icts_test/mango-metadata-from-tables/"
             "{{ size }}_shapes/{{ shape|lower }}_{{ date|date_format(input_format='%d/%m/%Y',output_format='%d%m%Y')}}.jpg"
@@ -203,7 +210,7 @@ def case_blacklist():
         dataobject: [avu for avu in list_of_avus if avu.name != "color"]
         for dataobject, list_of_avus in basic_metadata.items()
     }
-    return "testdata/testdata.csv", config_as_file, expected_output
+    return f"{TESTDATA_FOLDER}/testdata.csv", config_as_file, expected_output
 
 
 def case_whitelist():
@@ -214,13 +221,13 @@ def case_whitelist():
         dataobject: [avu for avu in list_of_avus if avu.name != "color"]
         for dataobject, list_of_avus in basic_metadata.items()
     }
-    return "testdata/testdata.csv", config_as_file, expected_output
+    return f"{TESTDATA_FOLDER}/testdata.csv", config_as_file, expected_output
 
 
 def case_multiple_sheets():
     config_as_file = config_dict_to_yaml({"sheets": ["Tabelle1", "Sheet1"]})
     return (
-        "testdata/testdata_multiple_sheets.xlsx",
+        f"{TESTDATA_FOLDER}/testdata_multiple_sheets.xlsx",
         config_as_file,
         multiple_sheets_metadata(basic_metadata),
     )
@@ -231,7 +238,7 @@ def case_multiple_values():
         {"multivalue_columns": ["author"], "multivalue_separator": ";"}
     )
     return (
-        "testdata/testdata_multiple_values.csv",
+        f"{TESTDATA_FOLDER}/testdata_multiple_values.csv",
         config_as_file,
         multiple_values(basic_metadata),
     )
@@ -246,7 +253,7 @@ def case_multiple_values_multiple_sheets():
         }
     )
     return (
-        "testdata/testdata_multiple_values_multiple_sheets.xlsx",
+        f"{TESTDATA_FOLDER}/testdata_multiple_values_multiple_sheets.xlsx",
         config_as_file,
         multiple_values_multiple_sheets(basic_metadata),
     )
@@ -275,8 +282,8 @@ def case_path_from_columns(mapping):
 @parametrize(
     "path",
     [
-        "testdata/test-1.0.0-published.json",
-        "testdata/test-2.0.0-published.json",
+        f"{TESTDATA_FOLDER}/test-1.0.0-published.json",
+        f"{TESTDATA_FOLDER}/test-2.0.0-published.json",
         "file_does_not_exist",
     ],
 )
@@ -285,7 +292,7 @@ def case_path_from_columns(mapping):
 def case_schema_metadata(
     path, exclude_non_schema_metadata, exclude_invalid_schema_metadata
 ):
-    input_file = "testdata/testdata.csv"
+    input_file = f"{TESTDATA_FOLDER}/testdata.csv"
     custom_config = {
         "separator": ";",
         "mango_schema": {
@@ -297,7 +304,7 @@ def case_schema_metadata(
     if path == "file_does_not_exist":
         # case: there is no valid schema
         expected_output = basic_metadata
-    elif path == "testdata/test-1.0.0-published.json":
+    elif path == f"{TESTDATA_FOLDER}/test-1.0.0-published.json":
         # case: the valid schema matches all data
         expected_output = {
             dataobject: namespace_all_metadata(list_of_avus) + [get_schema_version(1)]
@@ -334,11 +341,11 @@ def case_schema_metadata(
 
 # @todo add tests for errors!
 def error_schema_metadata():
-    input_file = "testdata/testdata_missing_column.csv"
+    input_file = f"{TESTDATA_FOLDER}/testdata_missing_column.csv"
     custom_config = {
         "separator": ";",
         "mango_schema": {
-            "path": "testdata/test-1.0.0-published.json",
+            "path": f"{TESTDATA_FOLDER}/test-1.0.0-published.json",
             "exclude_non_schema_metadata": True,
             "exclude_invalid_schema_metadata": True,
         },

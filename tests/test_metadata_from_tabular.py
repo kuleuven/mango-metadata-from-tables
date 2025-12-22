@@ -4,7 +4,8 @@ from irods.meta import iRODSMeta
 from pytest_cases import fixture, parametrize_with_cases
 import pytest
 
-import metadata_from_tabular
+import mango_metadata_from_tables.run as metadata_from_tabular
+import mango_metadata_from_tables.preprocessing as preprocessing
 
 
 @fixture
@@ -17,7 +18,7 @@ def avus(
     representing the config YAML, generate a dictionary with
     absolute paths as keys and a list of AVUs as values.
     """
-    process_file = metadata_from_tabular.apply_config(config)
+    process_file = preprocessing.apply_config(config)
     processed_config_data = process_file(input_file, session=None)
     sheets = processed_config_data["sheets"]
     multivalue_columns = processed_config_data["multivalue_columns"]
@@ -46,10 +47,10 @@ def test_avus(avus):
 
 @parametrize_with_cases("input_file,config,err_type,err_msg", prefix="error")
 def test_exceptions(input_file: str, config: io.StringIO, err_type, err_msg: str):
-    process_file = metadata_from_tabular.apply_config(config)
+    process_file = preprocessing.apply_config(config)
     processed_config_data = process_file(input_file, session=None)
     sheets = processed_config_data["sheets"]
     with pytest.raises(err_type, match=err_msg):
-        metadata_from_tabular.validate_schema_columns(
+        preprocessing.validate_schema_columns(
             sheets, processed_config_data["schema_instructions"].get("schema", None)
         )
