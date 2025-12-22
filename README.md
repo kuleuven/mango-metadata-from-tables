@@ -7,8 +7,8 @@ It supports plain text files and Excel files, which could be stored locally or i
 To get started, create a virtual environment with pip and install the dependencies described in the [requirements file](./requirements.txt):
 
 ```sh
-python -m venv .venv
-. .venv/bin/activate
+python -m venv venv
+source venv/bin/activate
 pip install -e .
 ```
 
