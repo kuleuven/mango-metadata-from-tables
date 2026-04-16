@@ -9,6 +9,7 @@ from .prompts import (
     ask_multivalue_columns,
     list_columns_with_character,
 )
+import os.path
 from rich.markdown import Markdown
 from .preprocessing import get_sheets
 from . import EXCLUDE_INVALID_SCHEMA_MD, EXCLUDE_NONSCHEMA_MD, console
