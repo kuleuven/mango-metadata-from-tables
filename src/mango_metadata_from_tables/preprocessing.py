@@ -1,3 +1,4 @@
+import io
 import os
 import pandas as pd
 import click
@@ -7,11 +8,11 @@ from pathlib import Path
 from irods.session import iRODSSession
 from irods.column import Criterion
 from irods.models import Collection, DataObject
-from . import DATAOBJECT
 import yaml
 from mango_mdschema import Schema
 from .read_table import parse_tabular_file
 from . import DATAOBJECT, EXCLUDE_NONSCHEMA_MD, EXCLUDE_INVALID_SCHEMA_MD, console
+from typing import Callable
 
 
 def search_objects_with_identifier(session, workingdirectory, identifier, exact_match):
@@ -148,12 +149,12 @@ def validate_schema_columns(sheets: dict[pd.DataFrame], schema: Schema) -> list[
     return sheets_for_schema
 
 
-def apply_config(config: click.File) -> callable:
+def apply_config(config: io.StringIO | click.File) -> Callable:
     """Parse the configuration file and apply the preprocessing"""
 
     yml = yaml.safe_load(config)
 
-    def process_tabular_file(filename: str, session: iRODSSession):
+    def process_tabular_file(filename: str | Path, session: iRODSSession) -> dict:
         """Apply the preprocessing to a file -this function is returned by apply_config()"""
         sheets = parse_tabular_file(filename, session, yml.get("separator", None))
         sheets_to_return = {}
@@ -162,6 +163,8 @@ def apply_config(config: click.File) -> callable:
                 continue
             path_column_name = yml["path_column"]["column_name"]
             if yml["path_column"]["path_type"] == "part":
+                if session is None:
+                    raise ValueError("Cannot query paths with no iRODS session")
                 sheet = query_dataobjects_with_filename(
                     session,
                     sheet,

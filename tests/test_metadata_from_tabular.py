@@ -12,27 +12,18 @@ import mango_metadata_from_tables.preprocessing as preprocessing
 @parametrize_with_cases("input_file,config,expected_output", prefix="case_")
 def avus(
     input_file: str, config: io.StringIO, expected_output: list[iRODSMeta]
-) -> dict:
+) -> tuple:
     """
     Based on a pair of path-to-tabular-file and a StringIO object
     representing the config YAML, generate a dictionary with
     absolute paths as keys and a list of AVUs as values.
     """
-    process_file = preprocessing.apply_config(config)
-    processed_config_data = process_file(input_file, session=None)
-    sheets = processed_config_data["sheets"]
-    multivalue_columns = processed_config_data["multivalue_columns"]
-    multivalue_separator = processed_config_data["multivalue_separator"]
-    schema_instructions = processed_config_data["schema_instructions"]
-
-    results = {}
-    for _, sheet in sheets.items():
-        for data_object, md_dict in metadata_from_tabular.generate_rows(
-            sheet, multivalue_columns, multivalue_separator
-        ):
-            results[data_object] = metadata_from_tabular.dict_to_avus(
-                md_dict, **schema_instructions
-            )
+    results = {
+        result["dataobject"]: result["avus"]
+        for result in metadata_from_tabular.apply_metadata_from_table(
+            input_file, config, True
+        )
+    }
     return results, expected_output
 
 
