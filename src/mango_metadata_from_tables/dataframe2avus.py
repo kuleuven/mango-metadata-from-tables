@@ -104,7 +104,7 @@ def apply_metadata_to_data_object(
         obj.metadata.apply_atomic_operations(
             *[AVUOperation(operation="add", avu=item) for item in avus]
         )
-        return len(avus)
+        return avus
     except Exception as e:
         print(e)
         return 0

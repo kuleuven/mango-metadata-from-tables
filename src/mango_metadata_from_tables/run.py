@@ -80,24 +80,23 @@ def apply_metadata_from_table(
             description=progress_message,
         ):
             if session and not dry_run:
-                simulated_avus = apply_metadata_to_data_object(
+                avus = apply_metadata_to_data_object(
                     dataobject, md_dict, sheet_schema_instructions, session
                 )
+                yield {"dataobject": dataobject, "avus": avus}
             else:
                 console.print(
                     f"Creating the following AVUs for dataobject {dataobject}:"
                 )
                 avus = dict_to_avus(md_dict, **sheet_schema_instructions)
-                simulated_avus = len(avus)
                 print(avus)
                 yield {"dataobject": dataobject, "avus": avus}
-                console.print("\n")
-            if simulated_avus:
+            if avus:
                 n += 1
-                if max_avus is None or simulated_avus > max_avus:
-                    max_avus = simulated_avus
-                if min_avus is None or simulated_avus < min_avus:
-                    min_avus = simulated_avus
+                if max_avus is None or len(avus) > max_avus:
+                    max_avus = len(avus)
+                if min_avus is None or len(avus) < min_avus:
+                    min_avus = len(avus)
             else:
                 errors += 1
 
