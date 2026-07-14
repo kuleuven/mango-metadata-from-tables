@@ -53,6 +53,7 @@ path_from_columns_examples = [
 
 
 default_config = {
+    "item_type": "DATAOBJECT",
     "path_column": {"column_name": "dataobject", "path_type": "absolute"},
     "separator": ",",
     "sheets": ["single_sheet"],

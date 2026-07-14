@@ -1,5 +1,6 @@
-from rich.console import Console
 from enum import StrEnum
+
+from rich.console import Console
 
 DATAOBJECT = "dataobject"
 EXCLUDE_NONSCHEMA_MD = "exclude_non_schema_metadata"

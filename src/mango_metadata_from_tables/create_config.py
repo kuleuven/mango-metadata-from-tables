@@ -65,6 +65,7 @@ def setup(example, output, sep=",", irods=False):
     for_yaml = {
         "sheets": list(sheets.keys()),
         "separator": sep,
+        "item_type": path_info["item_type"],
         "path_column": {
             "column_name": dataobject_column,
             "path_type": path_info["path_type"],
