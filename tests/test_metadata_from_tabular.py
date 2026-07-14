@@ -5,6 +5,7 @@ from pytest_cases import fixture, parametrize_with_cases
 import pathlib
 import pytest
 
+from mango_metadata_from_tables import ItemType
 import mango_metadata_from_tables.run as metadata_from_tabular
 import mango_metadata_from_tables.preprocessing as preprocessing
 
@@ -63,29 +64,37 @@ def irods_session():
 
 @fixture
 @parametrize_with_cases("input_file,config,expected_output", prefix="case_")
-def irods_objects(input_file, config, expected_output, irods_session):
+def irods_objects(input_file, config, expected_output, irods_session, current_cases):
+    is_object = "collection" not in current_cases["irods_objects"]["config"].id
     created_subcollections = []
     for path in expected_output.keys():
-        parent = str(pathlib.Path(path).parent)
-        if not irods_session.collections.exists(parent):
-            irods_session.collections.create(parent, recurse=True)
-        irods_session.data_objects.create(path)
-    yield input_file, config, expected_output
+        if is_object:
+            parent = str(pathlib.Path(path).parent)
+            if not irods_session.collections.exists(parent):
+                irods_session.collections.create(parent, recurse=True)
+            irods_session.data_objects.create(path)
+        else:
+            irods_session.collections.create(path, recurse=True)
+    yield input_file, config, expected_output, is_object
     for path in expected_output.keys():
-        irods_session.data_objects.unlink(path)  # review
-        for subcollection in created_subcollections:
-            irods_session.collections.remove(subcollection)
+        if is_object:
+            irods_session.data_objects.unlink(path, force=True)  # review
+            for subcollection in created_subcollections:
+                irods_session.collections.remove(subcollection, force=True)
+        else:
+            irods_session.collections.remove(path, force=True)
 
 
 def test_irods(irods_objects, irods_session, subtests):
-    input_path, config, expected_output = irods_objects
+    input_path, config, expected_output, is_object = irods_objects
     results = metadata_from_tabular.apply_metadata_from_table(
         input_path, config, session=irods_session
     )
+    manager = irods_session.data_objects if is_object else irods_session.collections
     for result in results:
         dataobject = result["dataobject"]
         assert dataobject in expected_output
-        avus = irods_session.data_objects.get(dataobject).metadata.items()
+        avus = manager.get(dataobject).metadata.items()
         for avu in expected_output[dataobject]:
             with subtests.test(avu=avu):
                 assert avu in avus

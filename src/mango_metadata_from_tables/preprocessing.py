@@ -165,13 +165,14 @@ def apply_config(config: io.StringIO | click.File) -> Callable:
     def process_tabular_file(filename: str | Path, session: iRODSSession) -> dict:
         """Apply the preprocessing to a file -this function is returned by apply_config()"""
         sheets = parse_tabular_file(filename, session, yml.get("separator", None))
+        item_type = yml.get("item_type", ItemType.DATAOBJECT.name)
         sheets_to_return = {}
         for sheetname, sheet in sheets.items():
             if sheetname not in yml["sheets"]:
                 continue
             path_column_name = yml["path_column"]["column_name"]
             if (
-                yml["item_type"] == ItemType.DATAOBJECT.name
+                item_type == ItemType.DATAOBJECT.name
                 and yml["path_column"]["path_type"] == "part"
             ):
                 if session is None:

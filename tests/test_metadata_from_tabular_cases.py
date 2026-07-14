@@ -1,5 +1,7 @@
-import os
 import io
+import os
+import pathlib
+import re
 import yaml
 
 from irods.meta import iRODSMeta
@@ -194,6 +196,22 @@ def multiple_values_multiple_sheets(metadata: dict) -> dict:
     return md_copy
 
 
+def as_collection(mapping):
+    def object_to_collection(path):
+        """Just replace the name, removing the extension;
+        if there is a number, it replaces the name with subcoll+number.
+        Otherwise, just the stem"""
+        path_as_path = pathlib.Path(path)
+        parent_collection = path_as_path.parent
+        no_stem = path_as_path.stem
+        m = re.search(r"\d+", path_as_path.name)
+        if m is not None:
+            no_stem = f"subcoll{m.group()}"
+        return str(parent_collection / no_stem)
+
+    return {object_to_collection(path): avus for path, avus in mapping.items()}
+
+
 # endregion
 
 # region cases
@@ -335,6 +353,16 @@ def case_schema_metadata(
                 for dataobject, list_of_avus in expected_output.items()
             }
     return input_file, config_dict_to_yaml(custom_config), expected_output
+
+
+# ALWAYS USE 'collections' IN THE NAME OF A CASE WITH COLLECTIONS
+def case_collections():
+    config_as_file = config_dict_to_yaml({"item_type": "COLLECTION", "separator": ";"})
+    return (
+        f"{TESTDATA_FOLDER}/testdata_colls.csv",
+        config_as_file,
+        as_collection(basic_metadata),
+    )
 
 
 # endregion
