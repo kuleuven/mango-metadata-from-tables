@@ -36,6 +36,7 @@ basic_examples = [
     },
 ]
 
+
 # this could be expanded to test other filters eventually
 path_from_columns_examples = [
     {

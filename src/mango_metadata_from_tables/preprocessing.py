@@ -157,81 +157,79 @@ def validate_schema_columns(sheets: dict[pd.DataFrame], schema: Schema) -> list[
     return sheets_for_schema
 
 
-def apply_config(config: io.StringIO | click.File) -> Callable:
-    """Parse the configuration file and apply the preprocessing"""
-
+def process_tabular_file(
+    filename: str | Path,
+    config: io.StringIO | click.File,
+    session: iRODSSession | None = None,
+) -> dict:
+    """Apply the preprocessing to a file based on a configuration file"""
     yml = yaml.safe_load(config)
-
-    def process_tabular_file(filename: str | Path, session: iRODSSession) -> dict:
-        """Apply the preprocessing to a file -this function is returned by apply_config()"""
-        sheets = parse_tabular_file(filename, session, yml.get("separator", None))
-        item_type = yml.get("item_type", ItemType.DATAOBJECT.name)
-        sheets_to_return = {}
-        for sheetname, sheet in sheets.items():
-            if sheetname not in yml["sheets"]:
+    sheets = parse_tabular_file(filename, session, yml.get("separator", None))
+    item_type = yml.get("item_type", ItemType.DATAOBJECT.name)
+    sheets_to_return = {}
+    for sheetname, sheet in sheets.items():
+        if sheetname not in yml["sheets"]:
+            continue
+        path_column_name = yml["path_column"]["column_name"]
+        if (
+            item_type == ItemType.DATAOBJECT.name
+            and yml["path_column"]["path_type"] == "part"
+        ):
+            if session is None:
+                raise ValueError("Cannot query paths with no iRODS session")
+            sheet = query_dataobjects_with_filename(
+                session,
+                sheet,
+                path_column_name,
+                yml["path_column"]["workdir"],
+                exact_match=False,
+            )
+            if sheet.empty:
                 continue
-            path_column_name = yml["path_column"]["column_name"]
-            if (
-                item_type == ItemType.DATAOBJECT.name
-                and yml["path_column"]["path_type"] == "part"
-            ):
-                if session is None:
-                    raise ValueError("Cannot query paths with no iRODS session")
-                sheet = query_dataobjects_with_filename(
-                    session,
-                    sheet,
-                    path_column_name,
-                    yml["path_column"]["workdir"],
-                    exact_match=False,
-                )
-                if sheet.empty:
-                    continue
-            elif yml["path_column"]["path_type"] == "relative":
-                sheet = chain_collection_and_filename(
-                    sheet, path_column_name, yml["path_column"]["workdir"]
-                )
-            elif yml["path_column"]["path_type"] == "pattern":
-                env = create_jinja_environment_with_filters()
-                sheet = create_path_based_on_pattern(
-                    sheet, yml["path_column"]["pattern"], env
-                )
-            else:
-                sheet = sheet.rename(columns={path_column_name: DATAOBJECT})
-
-            if "whitelist" in yml:
-                sheet = sheet[
-                    [c for c in sheet.columns if c in [DATAOBJECT] + yml["whitelist"]]
-                ]
-            elif "blacklist" in yml:
-                sheet = sheet[[c for c in sheet.columns if c not in yml["blacklist"]]]
-            sheets_to_return[sheetname] = sheet
-
-        multivalue_columns = yml.get("multivalue_columns", [])
-        multivalue_separator = yml.get("multivalue_separator", "")
-        schema_info = yml.get("mango_schema", {})
-        if os.path.exists(schema_info.get("path", "")):
-            schema_instructions = {
-                "schema": Schema(schema_info["path"]),
-                EXCLUDE_NONSCHEMA_MD: schema_info.get(EXCLUDE_NONSCHEMA_MD, True),
-                EXCLUDE_INVALID_SCHEMA_MD: schema_info.get(
-                    EXCLUDE_INVALID_SCHEMA_MD, False
-                ),
-            }
-
+        elif yml["path_column"]["path_type"] == "relative":
+            sheet = chain_collection_and_filename(
+                sheet, path_column_name, yml["path_column"]["workdir"]
+            )
+        elif yml["path_column"]["path_type"] == "pattern":
+            env = create_jinja_environment_with_filters()
+            sheet = create_path_based_on_pattern(
+                sheet, yml["path_column"]["pattern"], env
+            )
         else:
-            console.print("No schema found, metadata will be added as is.")
-            schema_instructions = {}
+            sheet = sheet.rename(columns={path_column_name: DATAOBJECT})
 
-        processed_config_data = {
-            "item_type": ItemType[yml.get("item_type", ItemType.DATAOBJECT)],
-            "sheets": sheets_to_return,
-            "multivalue_columns": multivalue_columns,
-            "multivalue_separator": multivalue_separator,
-            "schema_instructions": schema_instructions,
+        if "whitelist" in yml:
+            sheet = sheet[
+                [c for c in sheet.columns if c in [DATAOBJECT] + yml["whitelist"]]
+            ]
+        elif "blacklist" in yml:
+            sheet = sheet[[c for c in sheet.columns if c not in yml["blacklist"]]]
+        sheets_to_return[sheetname] = sheet
+
+    multivalue_columns = yml.get("multivalue_columns", [])
+    multivalue_separator = yml.get("multivalue_separator", "")
+    schema_info = yml.get("mango_schema", {})
+    if os.path.exists(schema_info.get("path", "")):
+        schema_instructions = {
+            "schema": Schema(schema_info["path"]),
+            EXCLUDE_NONSCHEMA_MD: schema_info.get(EXCLUDE_NONSCHEMA_MD, True),
+            EXCLUDE_INVALID_SCHEMA_MD: schema_info.get(
+                EXCLUDE_INVALID_SCHEMA_MD, False
+            ),
         }
-        return processed_config_data
 
-    return process_tabular_file
+    else:
+        console.print("No schema found, metadata will be added as is.")
+        schema_instructions = {}
+
+    processed_config_data = {
+        "item_type": ItemType[yml.get("item_type", ItemType.DATAOBJECT)],
+        "sheets": sheets_to_return,
+        "multivalue_columns": multivalue_columns,
+        "multivalue_separator": multivalue_separator,
+        "schema_instructions": schema_instructions,
+    }
+    return processed_config_data
 
 
 # only connect to irods if requested

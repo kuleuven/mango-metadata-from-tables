@@ -6,7 +6,7 @@ import click
 from rich.markdown import Markdown
 from rich.progress import track
 from .dataframe2avus import dict_to_avus, generate_rows, apply_metadata_to_data_object
-from .preprocessing import apply_config, validate_schema_columns
+from .preprocessing import process_tabular_file, validate_schema_columns
 from . import console
 
 # region Chains
@@ -50,11 +50,7 @@ def apply_metadata_from_table(
 ):
     if session is None:
         console.print("No session found, we'll try a dry-run!")
-    process_file = apply_config(config)  # parse the configuration file
-
-    processed_config_data = process_file(
-        filename, session
-    )  # preprocess the tabular file
+    processed_config_data = process_tabular_file(filename, config, session)
 
     sheets = processed_config_data["sheets"]
     item_type = processed_config_data["item_type"]

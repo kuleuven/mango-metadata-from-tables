@@ -40,8 +40,9 @@ def test_avus(avus):
 
 @parametrize_with_cases("input_file,config,err_type,err_msg", prefix="error")
 def test_exceptions(input_file: str, config: io.StringIO, err_type, err_msg: str):
-    process_file = preprocessing.apply_config(config)
-    processed_config_data = process_file(input_file, session=None)
+    processed_config_data = preprocessing.process_tabular_file(
+        input_file, config, session=None
+    )
     sheets = processed_config_data["sheets"]
     with pytest.raises(err_type, match=err_msg):
         preprocessing.validate_schema_columns(
