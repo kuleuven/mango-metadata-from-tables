@@ -27,7 +27,7 @@ basic_examples = [
             "path_column": {
                 "column_name": "file",
                 "path_type": "relative",
-                "workdir": "/icts/home/datateam_icts_icts_test",
+                "workdir": "/icts/home/datateam_icts_icts_quality",
             },
             "sheets": ["Tabelle1"],
         },
@@ -39,13 +39,13 @@ path_from_columns_examples = [
     {
         "id": "basic",
         "input_file": f"{TESTDATA_FOLDER}/testdata_path_from_columns.csv",
-        "pattern": "/icts/home/datateam_icts_icts_test/mango-metadata-from-tables/{{size}}_shapes/a_{{color}}_{{shape}}.jpg",
+        "pattern": "/icts/home/datateam_icts_icts_quality/mango-metadata-from-tables/{{size}}_shapes/a_{{color}}_{{shape}}.jpg",
     },
     {
         "id": "date_filter",
         "input_file": f"{TESTDATA_FOLDER}/testdata_path_from_columns_with_filters.csv",
         "pattern": (
-            "/icts/home/datateam_icts_icts_test/mango-metadata-from-tables/"
+            "/icts/home/datateam_icts_icts_quality/mango-metadata-from-tables/"
             "{{ size }}_shapes/{{ shape|lower }}_{{ date|date_format(input_format='%d/%m/%Y',output_format='%d%m%Y')}}.jpg"
         ),
     },
@@ -70,17 +70,17 @@ def config_dict_to_yaml(config_dict: dict) -> io.StringIO:
 # region outputs
 
 basic_metadata = {
-    "/icts/home/datateam_icts_icts_test/mango-metadata-from-tables/file1.txt": [
+    "/icts/home/datateam_icts_icts_quality/mango-metadata-from-tables/file1.txt": [
         iRODSMeta("size", "small"),
         iRODSMeta("color", "green"),
         iRODSMeta("shape", "star"),
     ],
-    "/icts/home/datateam_icts_icts_test/mango-metadata-from-tables/file2.txt": [
+    "/icts/home/datateam_icts_icts_quality/mango-metadata-from-tables/file2.txt": [
         iRODSMeta("size", "medium"),
         iRODSMeta("color", "red"),
         iRODSMeta("shape", "heart"),
     ],
-    "/icts/home/datateam_icts_icts_test/mango-metadata-from-tables/file3.txt": [
+    "/icts/home/datateam_icts_icts_quality/mango-metadata-from-tables/file3.txt": [
         iRODSMeta("size", "big"),
         iRODSMeta("color", "blue"),
         iRODSMeta("shape", "square"),
@@ -148,7 +148,7 @@ def multiple_sheets_metadata(metadata: dict) -> dict:
     }
     new_md = iRODSMeta("vibe", "like a forest on a sunny day")
     md_copy[
-        "/icts/home/datateam_icts_icts_test/mango-metadata-from-tables/file3.txt"
+        "/icts/home/datateam_icts_icts_quality/mango-metadata-from-tables/file3.txt"
     ].append(new_md)
     return md_copy
 
@@ -162,13 +162,13 @@ def multiple_values(metadata: dict) -> dict:
     jane_doe = iRODSMeta("author", "Jane Doe")
     john_doe = iRODSMeta("author", "John Doe")
     md_copy[
-        "/icts/home/datateam_icts_icts_test/mango-metadata-from-tables/file1.txt"
+        "/icts/home/datateam_icts_icts_quality/mango-metadata-from-tables/file1.txt"
     ] += [john_doe, jane_doe]
     md_copy[
-        "/icts/home/datateam_icts_icts_test/mango-metadata-from-tables/file2.txt"
+        "/icts/home/datateam_icts_icts_quality/mango-metadata-from-tables/file2.txt"
     ] += [john_doe]
     md_copy[
-        "/icts/home/datateam_icts_icts_test/mango-metadata-from-tables/file3.txt"
+        "/icts/home/datateam_icts_icts_quality/mango-metadata-from-tables/file3.txt"
     ] += [jane_doe]
     return md_copy
 
@@ -179,7 +179,7 @@ def multiple_values_multiple_sheets(metadata: dict) -> dict:
 
     # adding metadata for second sheet
     md_copy[
-        "/icts/home/datateam_icts_icts_test/mango-metadata-from-tables/file4.txt"
+        "/icts/home/datateam_icts_icts_quality/mango-metadata-from-tables/file4.txt"
     ] = [
         iRODSMeta("color", "purple"),
         iRODSMeta("size", "big"),
@@ -270,7 +270,7 @@ def case_path_from_columns(mapping):
             }
         }
     )
-    main_coll = "/icts/home/datateam_icts_icts_test/mango-metadata-from-tables"
+    main_coll = "/icts/home/datateam_icts_icts_quality/mango-metadata-from-tables"
     # apply collection name to data object paths
     expected_output = {
         f"{main_coll}/{fname}": avu_list
