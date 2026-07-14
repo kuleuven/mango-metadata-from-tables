@@ -9,7 +9,7 @@ from irods.session import iRODSSession
 from irods.column import Criterion
 from irods.models import Collection, DataObject
 import yaml
-from mango_mdschema import Schema
+from mango_mdschema.schema import Schema, get_mango_schema
 from .read_table import parse_tabular_file
 from . import (
     DATAOBJECT,
@@ -209,9 +209,23 @@ def process_tabular_file(
     multivalue_columns = yml.get("multivalue_columns", [])
     multivalue_separator = yml.get("multivalue_separator", "")
     schema_info = yml.get("mango_schema", {})
-    if os.path.exists(schema_info.get("path", "")):
+    if "path" in schema_info:
+
+        def get_schema(path):
+            match path:
+                case {"realm": realm, "schema": schema}:
+                    return Schema(
+                        get_mango_schema(session, realm=realm, schema_name=schema)
+                    )
+                case str(path):
+                    return Schema(path) if os.path.exists(path) else None
+
+        schema = get_schema(schema_info["path"])
+    else:
+        schema = None
+    if schema:
         schema_instructions = {
-            "schema": Schema(schema_info["path"]),
+            "schema": schema,
             EXCLUDE_NONSCHEMA_MD: schema_info.get(EXCLUDE_NONSCHEMA_MD, True),
             EXCLUDE_INVALID_SCHEMA_MD: schema_info.get(
                 EXCLUDE_INVALID_SCHEMA_MD, False

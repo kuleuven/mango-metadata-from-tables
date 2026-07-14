@@ -135,14 +135,27 @@ def setup(example, output, sep=",", irods=False):
 
     # ask about schema metadata
     if Confirm.ask("Do you have a ManGO metadata schema to validate your metadata?"):
-        # for now, only support local schemas, we are not checking in with iRODS (yet)
-        schema_file = ""
-        while not os.path.exists(schema_file):
-            # TODO add mango-mdschema validation OF the schema file
-            schema_file = Prompt.ask("Please provide a valid path for your schema: ")
-            if not schema_file:
-                print("Changed your mind? We won't use a schema then!")
-                break
+        if Confirm.ask(
+            "Does the schema exist in ManGO? (We cannot verify the correctness at this stage yet)"
+        ):
+            realm = Prompt.ask(
+                "Please provide the name of the project/realm the schema belongs to."
+            )
+            schema = Prompt.ask(
+                f"Please provide the name of the published schema in the {realm} realm."
+            )
+            # @todo validate against iRODS?
+            schema_file = {"realm": realm, "schema": schema}
+        else:
+            schema_file = ""
+            while not os.path.exists(schema_file):
+                # TODO add mango-mdschema validation OF the schema file
+                schema_file = Prompt.ask(
+                    "Please provide a valid path for your schema: "
+                )
+                if not schema_file:
+                    print("Changed your mind? We won't use a schema then!")
+                    break
         if schema_file:
             invalid_schema_metadata_question = (
                 "Should we discard invalid schema values? "
