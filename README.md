@@ -1,7 +1,7 @@
 # Python module to extract metadata from tables
 
-Use this module to process tabular files in which each row represents an iRODS data object
-and each column contains either an identifier or metadata to add to this data object.
+Use this module to process tabular files in which each row represents an iRODS data object or collection
+and each column contains either an identifier or metadata to add to this item.
 It supports plain text files and Excel files, which could be stored locally or in iRODS itself.
 
 To get started, create a virtual environment with pip and install the dependencies described in the [requirements file](./requirements.txt):
@@ -43,7 +43,7 @@ and create a "test-config.yaml" configuration file that keeps track of the answe
 
 Then, with the `run` command, we use the information on the configuration YAML file to parse
 the tabular file and, because it's just a "dry run", we simulate adding the metadata to each
-data object. Note that this `run` command could then also be used on other tabular files
+data object or collection. Note that this `run` command could then also be used on other tabular files
 with the same properties as the original one.
 
 ```sh

@@ -9,7 +9,6 @@ from .dataframe2avus import dict_to_avus, generate_rows, apply_metadata_to_data_
 from .preprocessing import apply_config, validate_schema_columns
 from . import console
 
-
 # region Chains
 
 
@@ -58,6 +57,7 @@ def apply_metadata_from_table(
     )  # preprocess the tabular file
 
     sheets = processed_config_data["sheets"]
+    item_type = processed_config_data["item_type"]
     multivalue_columns = processed_config_data["multivalue_columns"]
     multivalue_separator = processed_config_data["multivalue_separator"]
     schema_instructions = processed_config_data["schema_instructions"]
@@ -81,12 +81,12 @@ def apply_metadata_from_table(
         ):
             if session and not dry_run:
                 avus = apply_metadata_to_data_object(
-                    dataobject, md_dict, sheet_schema_instructions, session
+                    dataobject, md_dict, sheet_schema_instructions, session, item_type
                 )
                 yield {"dataobject": dataobject, "avus": avus}
             else:
                 console.print(
-                    f"Creating the following AVUs for dataobject {dataobject}:"
+                    f"Creating the following AVUs for {item_type.value} {dataobject}:"
                 )
                 avus = dict_to_avus(md_dict, **sheet_schema_instructions)
                 print(avus)
@@ -107,7 +107,7 @@ def apply_metadata_from_table(
             Markdown(
                 # This calculation may not be correct anymore in case of multiple values,
                 # since the md_dict of each object can now have a different length
-                f"{'Simulated' if dry_run else 'Applied'} {avu_length_range} AVUs for each of {n} data objects"
+                f"{'Simulated' if dry_run else 'Applied'} {avu_length_range} AVUs for each of {n} {item_type.value}s"
             )
         )
         if errors > 0:

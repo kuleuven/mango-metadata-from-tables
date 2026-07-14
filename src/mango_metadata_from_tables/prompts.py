@@ -1,5 +1,5 @@
 import pandas as pd
-from . import console
+from . import console, ItemType
 from rich.markdown import Markdown
 from rich.prompt import Prompt, Confirm
 from .preprocessing import (
@@ -50,7 +50,7 @@ def select_sheets(sheet_collection: dict) -> list:
 
 
 def identify_dataobject_column(sheet_collection: dict) -> str:
-    """Ask user which column contains the unique data object information"""
+    """Ask user which column contains the unique data object or collection information"""
     columns = set([col for sheet in sheet_collection.values() for col in sheet.columns])
     dfs = "dataframe has" if len(sheet_collection) == 1 else "dataframes have"
     cols = "1 column" if len(columns) == 1 else f"{len(columns)} columns"
@@ -58,7 +58,7 @@ def identify_dataobject_column(sheet_collection: dict) -> str:
     column_list = "\n\n".join(f"- {col}" for col in columns)
     console.print(Markdown(column_intro + column_list))
     return Prompt.ask(
-        "Which column contains an unique identifier for the target data object?",
+        "Which column contains an unique identifier for the target item?",
         choices=columns,
     )
 
@@ -80,26 +80,33 @@ def test_pattern_on_first_column(sheet_collection: dict[pd.DataFrame], pattern: 
     return result
 
 
-def classify_dataobject_column(sheet_collection: dict) -> dict:
+def classify_target_item_column(
+    sheet_collection: dict,
+) -> dict:
 
     import re
 
+    item_type = Prompt.ask(
+        "Will you be annotating data objects or colletions?", choices=ItemType
+    )
+
     message = """
-    In order to add metadata to your data objects, each row needs
-    to have a reference to your data object.
+    In order to add metadata to your TARGET_ITEMs, each row needs
+    to have a reference to your TARGET_ITEM.
 
-    For your table, how can we find the data object in each row?
-    
+    For your table, how can we find the TARGET_ITEM in each row?
 
-    1) A column contains the absolute path to the data object
-    2) A column contains the relative path to the data object
-    3) A column contains (part of the) data object name
-    4) The absolute path of the data object can be reconstructed by combining 
+    1) A column contains the absolute path to the TARGET_ITEM
+    2) A column contains the relative path to the TARGET_ITEM
+    3) The absolute path of the data TARGET_ITEM can be reconstructed by combining 
        info of multiple columns and strings.
     """
+    message = message.replace("TARGET_ITEM", item_type)
+    if ItemType == ItemType.DATAOBJECT.value:
+        message += "4) A column contains part of the data object name"
 
-    answer = Prompt.ask(message, choices=["1", "2", "3", "4"])
-    choice_mapping = {"1": "absolute", "2": "relative", "3": "part", "4": "pattern"}
+    choice_mapping = {"1": "absolute", "2": "relative", "3": "pattern", "4": "part"}
+    answer = Prompt.ask(message, choices=list(choice_mapping.keys()))
     path_type = choice_mapping[answer]
     workdir = ""
     pattern = ""
@@ -147,7 +154,10 @@ def classify_dataobject_column(sheet_collection: dict) -> dict:
                     f"Great! Data objects will be found by querying the contents of `{dataobject_column}` within `{workdir}`!"
                 )
             )
+    enum_mapping = {x.value: x for x in ItemType}
+
     return {
+        "item_type": enum_mapping[item_type],
         "dataobject_column": dataobject_column,
         "path_type": path_type,
         "pattern": pattern,

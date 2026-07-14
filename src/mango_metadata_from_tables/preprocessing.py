@@ -11,12 +11,20 @@ from irods.models import Collection, DataObject
 import yaml
 from mango_mdschema import Schema
 from .read_table import parse_tabular_file
-from . import DATAOBJECT, EXCLUDE_NONSCHEMA_MD, EXCLUDE_INVALID_SCHEMA_MD, console
+from . import (
+    DATAOBJECT,
+    EXCLUDE_NONSCHEMA_MD,
+    EXCLUDE_INVALID_SCHEMA_MD,
+    console,
+    ItemType,
+)
 from typing import Callable
 
 
-def search_objects_with_identifier(session, workingdirectory, identifier, exact_match):
-    """Searches a given project for objects starting with a certain identifier
+def search_objects_with_identifier(
+    session: iRODSSession, workingdirectory: str, identifier: str, exact_match: bool
+):
+    """Searches a given project for data objects starting with a certain identifier
 
 
     Arguments
@@ -98,7 +106,7 @@ def create_path_based_on_pattern(
 def chain_collection_and_filename(
     df: pd.DataFrame, filename_column: str, workingdirectory: str
 ):
-    """Renames the column with the relative data object path and completes it with the collection path"""
+    """Renames the column with the relative data object or collection path and completes it with the parent collection path"""
     df = df.rename(columns={filename_column: DATAOBJECT})
     df[DATAOBJECT] = [str(Path(workingdirectory) / Path(x)) for x in df[DATAOBJECT]]
     return df
@@ -162,7 +170,10 @@ def apply_config(config: io.StringIO | click.File) -> Callable:
             if sheetname not in yml["sheets"]:
                 continue
             path_column_name = yml["path_column"]["column_name"]
-            if yml["path_column"]["path_type"] == "part":
+            if (
+                yml["item_type"] == ItemType.DATAOBJECT.name
+                and yml["path_column"]["path_type"] == "part"
+            ):
                 if session is None:
                     raise ValueError("Cannot query paths with no iRODS session")
                 sheet = query_dataobjects_with_filename(
@@ -211,6 +222,7 @@ def apply_config(config: io.StringIO | click.File) -> Callable:
             schema_instructions = {}
 
         processed_config_data = {
+            "item_type": ItemType[yml.get("item_type", ItemType.DATAOBJECT)],
             "sheets": sheets_to_return,
             "multivalue_columns": multivalue_columns,
             "multivalue_separator": multivalue_separator,

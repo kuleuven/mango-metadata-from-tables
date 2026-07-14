@@ -3,7 +3,7 @@ from irods.session import iRODSSession
 from mango_mdschema import Schema
 from irods.meta import iRODSMeta, AVUOperation
 from collections.abc import Generator
-from . import console, DATAOBJECT
+from . import console, DATAOBJECT, ItemType
 
 
 def unlist_value(value: list, field) -> str | int:
@@ -95,11 +95,20 @@ def generate_rows(
 
 
 def apply_metadata_to_data_object(
-    path: str, avu_dict: dict, schema_instructions: dict, session: iRODSSession
+    path: str,
+    avu_dict: dict,
+    schema_instructions: dict,
+    session: iRODSSession,
+    item_type: ItemType = ItemType.DATAOBJECT,
 ):
-    """Add metadata from a dictionary to a given data object"""
+    """Add metadata from a dictionary to a given data object or collection"""
+    manager = (
+        session.data_objects
+        if item_type == ItemType.DATAOBJECT
+        else session.collections
+    )
     try:
-        obj = session.data_objects.get(path)
+        obj = manager.get(path)
         avus = dict_to_avus(avu_dict, **schema_instructions)
         obj.metadata.apply_atomic_operations(
             *[AVUOperation(operation="add", avu=item) for item in avus]
