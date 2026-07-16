@@ -1,17 +1,19 @@
 import io
 
 from irods.meta import iRODSMeta
-from pytest_cases import fixture, parametrize_with_cases
+from pytest_cases import fixture, parametrize_with_cases, filters
 import pathlib
 import pytest
 
-from mango_metadata_from_tables import ItemType
 import mango_metadata_from_tables.run as metadata_from_tabular
 import mango_metadata_from_tables.preprocessing as preprocessing
 
 
 @fixture
-@parametrize_with_cases("input_file,config,expected_output", prefix="case_")
+@parametrize_with_cases(
+    "input_file,config,expected_output",
+    filter=~filters.has_tag("irods") & ~filters.has_tag("error"),
+)
 def avus(
     input_file: str, config: io.StringIO, expected_output: list[iRODSMeta]
 ) -> tuple:
@@ -38,7 +40,7 @@ def test_avus(avus):
         assert list_of_avus == expected_output[data_object]
 
 
-@parametrize_with_cases("input_file,config,err_type,err_msg", prefix="error")
+@parametrize_with_cases("input_file,config,err_type,err_msg", has_tag="error")
 def test_exceptions(input_file: str, config: io.StringIO, err_type, err_msg: str):
     processed_config_data = preprocessing.process_tabular_file(
         input_file, config, session=None

@@ -5,11 +5,14 @@ import re
 import yaml
 
 from irods.meta import iRODSMeta
-from pytest_cases import parametrize
+from pytest_cases import parametrize, case
 
 
 def get_schema_version(version: int) -> iRODSMeta:
-    return iRODSMeta("mgs.test.__version__", f"{version}.0.0")
+    schema_name = "test-excel2avus"
+    if version != 1:
+        schema_name += f"-{version}"
+    return iRODSMeta(f"mgs.{schema_name}.__version__", f"{version}.0.0")
 
 
 TEST_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -121,9 +124,12 @@ pattern_path_output = {
 }
 
 
-def namespace_metadata(avu: iRODSMeta) -> iRODSMeta:
+def namespace_metadata(avu: iRODSMeta, v="1") -> iRODSMeta:
     """Turn an AVU into its schema counterpart ('test' schema)."""
-    return iRODSMeta(f"mgs.test.{avu.name}", avu.value)
+    schema_name = "test-excel2avus"
+    if v != "1":
+        schema_name += "-" + v
+    return iRODSMeta(f"mgs.{schema_name}.{avu.name}", avu.value)
 
 
 def namespace_all_metadata(avu_list: list[iRODSMeta]) -> list[iRODSMeta]:
@@ -138,7 +144,7 @@ def namespace_partial_metadata(avu_list: list[iRODSMeta]) -> list[iRODSMeta]:
         if avu.name == "color" or (
             avu.name == "size" and avu.value in ["small", "big"]
         ):
-            return namespace_metadata(avu)
+            return namespace_metadata(avu, v="2")
         return avu
 
     return [filter_metadata(avu) for avu in avu_list]
@@ -302,8 +308,8 @@ def case_path_from_columns(mapping):
 @parametrize(
     "path",
     [
-        f"{TESTDATA_FOLDER}/test-1.0.0-published.json",
-        f"{TESTDATA_FOLDER}/test-2.0.0-published.json",
+        f"{TESTDATA_FOLDER}/test-excel2avus-1.0.0-published.json",
+        f"{TESTDATA_FOLDER}/test-excel2avus-2-2.0.0-published.json",
         "file_does_not_exist",
     ],
 )
@@ -324,7 +330,61 @@ def case_schema_metadata(
     if path == "file_does_not_exist":
         # case: there is no valid schema
         expected_output = basic_metadata
-    elif path == f"{TESTDATA_FOLDER}/test-1.0.0-published.json":
+    elif "1.0.0" in path:
+        # case: the valid schema matches all data
+        expected_output = {
+            dataobject: namespace_all_metadata(list_of_avus) + [get_schema_version(1)]
+            for dataobject, list_of_avus in basic_metadata.items()
+        }
+    else:
+        # case: partial-match schema
+        expected_output = {
+            dataobject: namespace_partial_metadata(list_of_avus)
+            + [get_schema_version(2)]
+            for dataobject, list_of_avus in basic_metadata.items()
+        }
+        if exclude_invalid_schema_metadata:
+            # cases: invalid schema metadata is excluded
+            expected_output = {
+                dataobject: [avu for avu in list_of_avus if avu.name != "size"]
+                for dataobject, list_of_avus in expected_output.items()
+            }
+        if exclude_non_schema_metadata:
+            # cases: non-schema metadata is excluded
+            expected_output = {
+                dataobject: [
+                    avu
+                    for avu in list_of_avus
+                    if avu.name.startswith("mgs") or avu.name == "size"
+                ]
+                for dataobject, list_of_avus in expected_output.items()
+            }
+    return input_file, config_dict_to_yaml(custom_config), expected_output
+
+
+@parametrize(
+    "schema_name",
+    [
+        "test-excel2avus",  # same as version 1 above
+        "test-excel2avus-2",  # same as version 2 above
+    ],
+)
+@parametrize("exclude_non_schema_metadata", [True, False])
+@parametrize("exclude_invalid_schema_metadata", [True, False])
+@case(tags="irods")
+def case_irods_schema_metadata(
+    schema_name, exclude_non_schema_metadata, exclude_invalid_schema_metadata
+):
+    input_file = f"{TESTDATA_FOLDER}/testdata.csv"
+    custom_config = {
+        "separator": ";",
+        "mango_schema": {
+            "path": {"realm": "datateam_icts_icts_quality", "schema": schema_name},
+            "exclude_non_schema_metadata": exclude_non_schema_metadata,
+            "exclude_invalid_schema_metadata": exclude_invalid_schema_metadata,
+        },
+    }
+    if schema_name == "test-excel2avus":
         # case: the valid schema matches all data
         expected_output = {
             dataobject: namespace_all_metadata(list_of_avus) + [get_schema_version(1)]
@@ -370,12 +430,13 @@ def case_collections():
 
 
 # @todo add tests for errors!
+@case(tags=["error"])
 def error_schema_metadata():
     input_file = f"{TESTDATA_FOLDER}/testdata_missing_column.csv"
     custom_config = {
         "separator": ";",
         "mango_schema": {
-            "path": f"{TESTDATA_FOLDER}/test-1.0.0-published.json",
+            "path": f"{TESTDATA_FOLDER}/test-excel2avus-1.0.0-published.json",
             "exclude_non_schema_metadata": True,
             "exclude_invalid_schema_metadata": True,
         },
