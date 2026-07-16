@@ -8,11 +8,11 @@ from .prompts import (
     filter_columns,
     ask_multivalue_columns,
     list_columns_with_character,
+    ask_about_schemas,
 )
-import os.path
 from rich.markdown import Markdown
 from .preprocessing import get_sheets
-from . import EXCLUDE_INVALID_SCHEMA_MD, EXCLUDE_NONSCHEMA_MD, console
+from . import console
 
 
 @click.command()
@@ -134,50 +134,8 @@ def setup(example, output, sep=",", irods=False):
         for_yaml["multivalue_columns"] = multivalue_columns
 
     # ask about schema metadata
-    if Confirm.ask("Do you have a ManGO metadata schema to validate your metadata?"):
-        if Confirm.ask(
-            "Does the schema exist in ManGO? (We cannot verify the correctness at this stage yet)"
-        ):
-            realm = Prompt.ask(
-                "Please provide the name of the project/realm the schema belongs to"
-            )
-            schema = Prompt.ask(
-                f"Please provide the name of the published schema in the {realm} realm"
-            )
-            # @todo validate against iRODS?
-            schema_file = {"realm": realm, "schema": schema}
-        else:
-            schema_file = ""
-            while not os.path.exists(schema_file):
-                # TODO add mango-mdschema validation OF the schema file
-                schema_file = Prompt.ask(
-                    "Please provide a valid path for your schema: "
-                )
-                if not schema_file:
-                    print("Changed your mind? We won't use a schema then!")
-                    break
-        if schema_file:
-            invalid_schema_metadata_question = (
-                "Should we discard invalid schema values? "
-                "(Otherwise, they will be added as non-schema metadata, "
-                "e.g. 'size=medium' instead of 'mgs.schema.size=medium')"
-            )
-            exclude_invalid_schema_metadata = Confirm.ask(
-                invalid_schema_metadata_question, default=False
-            )
-            nonschema_metadata_question = (
-                "Should we discard the columns not covered by schema? "
-                "(If you say no, they will be added as non-schema metadata):"
-            )
-
-            exclude_nonschema_metadata = Confirm.ask(
-                nonschema_metadata_question, default=True
-            )
-            for_yaml["mango_schema"] = {
-                "path": schema_file,
-                EXCLUDE_NONSCHEMA_MD: exclude_nonschema_metadata,
-                EXCLUDE_INVALID_SCHEMA_MD: exclude_invalid_schema_metadata,
-            }
+    if mango_schema_info := ask_about_schemas():
+        for_yaml["mango_schema"] = mango_schema_info
 
     # create yaml from the dictionary
     yml = yaml.dump(for_yaml, default_flow_style=False, indent=2)

@@ -1,5 +1,6 @@
+import os.path
 import pandas as pd
-from . import console, ItemType
+from . import console, ItemType, EXCLUDE_INVALID_SCHEMA_MD, EXCLUDE_NONSCHEMA_MD
 from rich.markdown import Markdown
 from rich.prompt import Prompt, Confirm
 from .preprocessing import (
@@ -239,3 +240,50 @@ def list_columns_with_character(
         and df[col].dtype == object
         and df[col].astype(str).str.contains(character, na=False, regex=False).any()
     )  # not sure about how this gets split in rows
+
+
+def ask_about_schemas() -> dict | None:
+    if not Confirm.ask(
+        "Do you have a ManGO metadata schema to validate your metadata?"
+    ):
+        return
+    if Confirm.ask(
+        "Does the schema exist in ManGO? (We cannot verify the correctness at this stage yet)"
+    ):
+        realm = Prompt.ask(
+            "Please provide the name of the project/realm the schema belongs to"
+        )
+        schema = Prompt.ask(
+            f"Please provide the name of the published schema in the {realm} realm"
+        )
+        # @todo validate against iRODS?
+        schema_file = {"realm": realm, "schema": schema}
+    else:
+        schema_file = ""
+        while not os.path.exists(schema_file):
+            # TODO add mango-mdschema validation OF the schema file
+            schema_file = Prompt.ask("Please provide a valid path for your schema: ")
+            if not schema_file:
+                print("Changed your mind? We won't use a schema then!")
+                break
+    if not schema_file:
+        return
+    invalid_schema_metadata_question = (
+        "Should we discard invalid schema values? "
+        "(Otherwise, they will be added as non-schema metadata, "
+        "e.g. 'size=medium' instead of 'mgs.schema.size=medium')"
+    )
+    exclude_invalid_schema_metadata = Confirm.ask(
+        invalid_schema_metadata_question, default=False
+    )
+    nonschema_metadata_question = (
+        "Should we discard the columns not covered by schema? "
+        "(If you say no, they will be added as non-schema metadata):"
+    )
+
+    exclude_nonschema_metadata = Confirm.ask(nonschema_metadata_question, default=True)
+    return {
+        "path": schema_file,
+        EXCLUDE_NONSCHEMA_MD: exclude_nonschema_metadata,
+        EXCLUDE_INVALID_SCHEMA_MD: exclude_invalid_schema_metadata,
+    }
