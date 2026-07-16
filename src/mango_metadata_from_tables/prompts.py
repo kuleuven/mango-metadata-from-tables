@@ -102,10 +102,12 @@ def classify_target_item_column(
        info of multiple columns and strings.
     """
     message = message.replace("TARGET_ITEM", item_type)
-    if ItemType == ItemType.DATAOBJECT.value:
-        message += "4) A column contains part of the data object name"
+    choice_mapping = {"1": "absolute", "2": "relative", "3": "pattern"}
 
-    choice_mapping = {"1": "absolute", "2": "relative", "3": "pattern", "4": "part"}
+    if item_type == ItemType.DATAOBJECT.value:
+        message += "4) A column contains part of the data object name\n"
+        choice_mapping["4"] = "part"
+
     answer = Prompt.ask(message, choices=list(choice_mapping.keys()))
     path_type = choice_mapping[answer]
     workdir = ""

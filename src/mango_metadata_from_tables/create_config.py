@@ -4,7 +4,7 @@ from rich.console import Group
 from rich.syntax import Syntax
 from .prompts import (
     select_sheets,
-    classify_dataobject_column,
+    classify_target_item_column,
     filter_columns,
     ask_multivalue_columns,
     list_columns_with_character,
@@ -53,7 +53,7 @@ def setup(example, output, sep=",", irods=False):
     sheets = {k: v for k, v in sheets.items() if k in selection_of_sheets}
 
     # get info on the dataobject column, if there is any
-    path_info = classify_dataobject_column(sheets)
+    path_info = classify_target_item_column(sheets)
     dataobject_column = path_info["dataobject_column"]
 
     # if there is a dedicated dataobject column,
@@ -65,7 +65,7 @@ def setup(example, output, sep=",", irods=False):
     for_yaml = {
         "sheets": list(sheets.keys()),
         "separator": sep,
-        "item_type": path_info["item_type"],
+        "item_type": path_info["item_type"].name,
         "path_column": {
             "column_name": dataobject_column,
             "path_type": path_info["path_type"],
@@ -139,10 +139,10 @@ def setup(example, output, sep=",", irods=False):
             "Does the schema exist in ManGO? (We cannot verify the correctness at this stage yet)"
         ):
             realm = Prompt.ask(
-                "Please provide the name of the project/realm the schema belongs to."
+                "Please provide the name of the project/realm the schema belongs to"
             )
             schema = Prompt.ask(
-                f"Please provide the name of the published schema in the {realm} realm."
+                f"Please provide the name of the published schema in the {realm} realm"
             )
             # @todo validate against iRODS?
             schema_file = {"realm": realm, "schema": schema}
