@@ -60,7 +60,7 @@ path_from_columns_examples = [
 
 default_config = {
     "item_type": "DATAOBJECT",
-    "path_column": {"column_name": "dataobject", "path_type": "absolute"},
+    "path_column": {"column_name": "item", "path_type": "absolute"},
     "separator": ",",
     "sheets": ["single_sheet"],
 }
@@ -152,10 +152,7 @@ def namespace_partial_metadata(avu_list: list[iRODSMeta]) -> list[iRODSMeta]:
 
 def multiple_sheets_metadata(metadata: dict) -> dict:
     """Add the AVU of the multiple sheets case."""
-    md_copy = {
-        dataobject: [avu for avu in avu_list]
-        for dataobject, avu_list in metadata.items()
-    }
+    md_copy = {item: [avu for avu in avu_list] for item, avu_list in metadata.items()}
     new_md = iRODSMeta("vibe", "like a forest on a sunny day")
     md_copy[
         "/icts/home/datateam_icts_icts_quality/mango-metadata-from-tables/file3.txt"
@@ -165,10 +162,7 @@ def multiple_sheets_metadata(metadata: dict) -> dict:
 
 def multiple_values(metadata: dict) -> dict:
     """Add the AVUs of the multiple values case."""
-    md_copy = {
-        dataobject: [avu for avu in avu_list]
-        for dataobject, avu_list in metadata.items()
-    }
+    md_copy = {item: [avu for avu in avu_list] for item, avu_list in metadata.items()}
     jane_doe = iRODSMeta("author", "Jane Doe")
     john_doe = iRODSMeta("author", "John Doe")
     md_copy[
@@ -233,8 +227,8 @@ def case_basic(mapping):
 def case_blacklist():
     config_as_file = config_dict_to_yaml({"separator": ";", "blacklist": ["color"]})
     expected_output = {
-        dataobject: [avu for avu in list_of_avus if avu.name != "color"]
-        for dataobject, list_of_avus in basic_metadata.items()
+        item: [avu for avu in list_of_avus if avu.name != "color"]
+        for item, list_of_avus in basic_metadata.items()
     }
     return f"{TESTDATA_FOLDER}/testdata.csv", config_as_file, expected_output
 
@@ -244,8 +238,8 @@ def case_whitelist():
         {"separator": ";", "whitelist": ["shape", "size"]}
     )
     expected_output = {
-        dataobject: [avu for avu in list_of_avus if avu.name != "color"]
-        for dataobject, list_of_avus in basic_metadata.items()
+        item: [avu for avu in list_of_avus if avu.name != "color"]
+        for item, list_of_avus in basic_metadata.items()
     }
     return f"{TESTDATA_FOLDER}/testdata.csv", config_as_file, expected_output
 
@@ -333,31 +327,30 @@ def case_schema_metadata(
     elif "1.0.0" in path:
         # case: the valid schema matches all data
         expected_output = {
-            dataobject: namespace_all_metadata(list_of_avus) + [get_schema_version(1)]
-            for dataobject, list_of_avus in basic_metadata.items()
+            item: namespace_all_metadata(list_of_avus) + [get_schema_version(1)]
+            for item, list_of_avus in basic_metadata.items()
         }
     else:
         # case: partial-match schema
         expected_output = {
-            dataobject: namespace_partial_metadata(list_of_avus)
-            + [get_schema_version(2)]
-            for dataobject, list_of_avus in basic_metadata.items()
+            item: namespace_partial_metadata(list_of_avus) + [get_schema_version(2)]
+            for item, list_of_avus in basic_metadata.items()
         }
         if exclude_invalid_schema_metadata:
             # cases: invalid schema metadata is excluded
             expected_output = {
-                dataobject: [avu for avu in list_of_avus if avu.name != "size"]
-                for dataobject, list_of_avus in expected_output.items()
+                item: [avu for avu in list_of_avus if avu.name != "size"]
+                for item, list_of_avus in expected_output.items()
             }
         if exclude_non_schema_metadata:
             # cases: non-schema metadata is excluded
             expected_output = {
-                dataobject: [
+                item: [
                     avu
                     for avu in list_of_avus
                     if avu.name.startswith("mgs") or avu.name == "size"
                 ]
-                for dataobject, list_of_avus in expected_output.items()
+                for item, list_of_avus in expected_output.items()
             }
     return input_file, config_dict_to_yaml(custom_config), expected_output
 
@@ -387,31 +380,30 @@ def case_irods_schema_metadata(
     if schema_name == "test-excel2avus":
         # case: the valid schema matches all data
         expected_output = {
-            dataobject: namespace_all_metadata(list_of_avus) + [get_schema_version(1)]
-            for dataobject, list_of_avus in basic_metadata.items()
+            item: namespace_all_metadata(list_of_avus) + [get_schema_version(1)]
+            for item, list_of_avus in basic_metadata.items()
         }
     else:
         # case: partial-match schema
         expected_output = {
-            dataobject: namespace_partial_metadata(list_of_avus)
-            + [get_schema_version(2)]
-            for dataobject, list_of_avus in basic_metadata.items()
+            item: namespace_partial_metadata(list_of_avus) + [get_schema_version(2)]
+            for item, list_of_avus in basic_metadata.items()
         }
         if exclude_invalid_schema_metadata:
             # cases: invalid schema metadata is excluded
             expected_output = {
-                dataobject: [avu for avu in list_of_avus if avu.name != "size"]
-                for dataobject, list_of_avus in expected_output.items()
+                item: [avu for avu in list_of_avus if avu.name != "size"]
+                for item, list_of_avus in expected_output.items()
             }
         if exclude_non_schema_metadata:
             # cases: non-schema metadata is excluded
             expected_output = {
-                dataobject: [
+                item: [
                     avu
                     for avu in list_of_avus
                     if avu.name.startswith("mgs") or avu.name == "size"
                 ]
-                for dataobject, list_of_avus in expected_output.items()
+                for item, list_of_avus in expected_output.items()
             }
     return input_file, config_dict_to_yaml(custom_config), expected_output
 

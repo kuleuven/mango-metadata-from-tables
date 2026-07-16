@@ -50,7 +50,7 @@ def select_sheets(sheet_collection: dict) -> list:
     return selected_sheets
 
 
-def identify_dataobject_column(sheet_collection: dict) -> str:
+def identify_item_column(sheet_collection: dict) -> str:
     """Ask user which column contains the unique data object or collection information"""
     columns = set([col for sheet in sheet_collection.values() for col in sheet.columns])
     dfs = "dataframe has" if len(sheet_collection) == 1 else "dataframes have"
@@ -114,7 +114,7 @@ def classify_target_item_column(
     workdir = ""
     pattern = ""
     if path_type == "pattern":
-        dataobject_column = ""
+        item_column = ""
         pattern_question = """
     Provide a path pattern using double curly braces ({{ }}) to reference column names.
     Example: '/zone/home/project/{{ lab }}_{{ experiment }}.txt' will use values from the 'lab' and 'experiment' columns in each row.
@@ -138,7 +138,7 @@ def classify_target_item_column(
         )
 
     else:
-        dataobject_column = identify_dataobject_column(sheet_collection)
+        item_column = identify_item_column(sheet_collection)
         if path_type in ["relative", "part"]:
             while not re.match("/[a-z_]+/home/[^/]+/?", workdir):
                 workdir = Prompt.ask(
@@ -148,20 +148,20 @@ def classify_target_item_column(
         if path_type == "relative":
             console.print(
                 Markdown(
-                    f"Great! The relative paths in `{dataobject_column}` will be chained to `{workdir}`!"
+                    f"Great! The relative paths in `{item_column}` will be chained to `{workdir}`!"
                 )
             )
         elif path_type == "part":
             console.print(
                 Markdown(
-                    f"Great! Data objects will be found by querying the contents of `{dataobject_column}` within `{workdir}`!"
+                    f"Great! Data objects will be found by querying the contents of `{item_column}` within `{workdir}`!"
                 )
             )
     enum_mapping = {x.value: x for x in ItemType}
 
     return {
         "item_type": enum_mapping[item_type],
-        "dataobject_column": dataobject_column,
+        "item_column": item_column,
         "path_type": path_type,
         "pattern": pattern,
         "workdir": workdir,

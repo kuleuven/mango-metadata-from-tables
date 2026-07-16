@@ -52,14 +52,14 @@ def setup(example, output, sep=",", irods=False):
     selection_of_sheets = select_sheets(sheets)
     sheets = {k: v for k, v in sheets.items() if k in selection_of_sheets}
 
-    # get info on the dataobject column, if there is any
+    # get info on the item column, if there is any
     path_info = classify_target_item_column(sheets)
-    dataobject_column = path_info["dataobject_column"]
+    item_column = path_info["item_column"]
 
-    # if there is a dedicated dataobject column,
+    # if there is a dedicated item column,
     # only keep the sheets that contain that column
-    if dataobject_column:
-        sheets = {k: v for k, v in sheets.items() if dataobject_column in v.columns}
+    if item_column:
+        sheets = {k: v for k, v in sheets.items() if item_column in v.columns}
 
     # start config yaml with the info we have
     for_yaml = {
@@ -67,7 +67,7 @@ def setup(example, output, sep=",", irods=False):
         "separator": sep,
         "item_type": path_info["item_type"].name,
         "path_column": {
-            "column_name": dataobject_column,
+            "column_name": item_column,
             "path_type": path_info["path_type"],
             "pattern": path_info["pattern"],
             "workdir": path_info["workdir"],
@@ -80,7 +80,7 @@ def setup(example, output, sep=",", irods=False):
             col
             for sheet in sheets.values()
             for col in sheet.columns
-            if col != dataobject_column
+            if col != item_column
         )
     )
     column_filter = filter_columns(all_column_names)
@@ -127,7 +127,7 @@ def setup(example, output, sep=",", irods=False):
 
         # ask for multivalue columns
         multivalue_columns = ask_multivalue_columns(
-            list(col for col in columns_with_separator if col != dataobject_column)
+            list(col for col in columns_with_separator if col != item_column)
         )
         # update yaml with multivalue columns information
         for_yaml["multivalue_separator"] = multivalue_separator

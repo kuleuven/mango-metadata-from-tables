@@ -23,7 +23,7 @@ def avus(
     absolute paths as keys and a list of AVUs as values.
     """
     results = {
-        result["dataobject"]: result["avus"]
+        result["item"]: result["avus"]
         for result in metadata_from_tabular.apply_metadata_from_table(
             input_file, config, dry_run=True
         )
@@ -95,9 +95,9 @@ def test_irods(irods_objects, irods_session, subtests):
     )
     manager = irods_session.data_objects if is_object else irods_session.collections
     for result in results:
-        dataobject = result["dataobject"]
-        assert dataobject in expected_output
-        avus = manager.get(dataobject).metadata.items()
-        for avu in expected_output[dataobject]:
+        item = result["item"]
+        assert item in expected_output
+        avus = manager.get(item).metadata.items()
+        for avu in expected_output[item]:
             with subtests.test(avu=avu):
                 assert avu in avus

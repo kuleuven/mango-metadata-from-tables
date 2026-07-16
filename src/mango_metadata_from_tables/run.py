@@ -71,22 +71,22 @@ def apply_metadata_from_table(
         max_avus = None
 
         # loop over each row printing a progress bar
-        for dataobject, md_dict in track(
+        for item, md_dict in track(
             generate_rows(sheet, multivalue_columns, multivalue_separator),
             description=progress_message,
         ):
             if session and not dry_run:
                 avus = apply_metadata_to_data_object(
-                    dataobject, md_dict, sheet_schema_instructions, session, item_type
+                    item, md_dict, sheet_schema_instructions, session, item_type
                 )
-                yield {"dataobject": dataobject, "avus": avus}
+                yield {"item": item, "avus": avus}
             else:
                 console.print(
-                    f"Creating the following AVUs for {item_type.value} {dataobject}:"
+                    f"Creating the following AVUs for {item_type.value} {item}:"
                 )
                 avus = dict_to_avus(md_dict, **sheet_schema_instructions)
                 print(avus)
-                yield {"dataobject": dataobject, "avus": avus}
+                yield {"item": item, "avus": avus}
             if avus:
                 n += 1
                 if max_avus is None or len(avus) > max_avus:
