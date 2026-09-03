@@ -423,7 +423,7 @@ def case_collections():
 
 # @todo add tests for errors!
 @case(tags=["error"])
-def error_schema_metadata():
+def case_error_schema_metadata():
     input_file = f"{TESTDATA_FOLDER}/testdata_missing_column.csv"
     custom_config = {
         "separator": ";",
