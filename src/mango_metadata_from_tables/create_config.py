@@ -4,15 +4,15 @@ from rich.console import Group
 from rich.syntax import Syntax
 from .prompts import (
     select_sheets,
-    classify_dataobject_column,
+    classify_target_item_column,
     filter_columns,
     ask_multivalue_columns,
     list_columns_with_character,
+    ask_about_schemas,
 )
-import os.path
 from rich.markdown import Markdown
 from .preprocessing import get_sheets
-from . import EXCLUDE_INVALID_SCHEMA_MD, EXCLUDE_NONSCHEMA_MD, console
+from . import console
 
 
 @click.command()
@@ -52,21 +52,22 @@ def setup(example, output, sep=",", irods=False):
     selection_of_sheets = select_sheets(sheets)
     sheets = {k: v for k, v in sheets.items() if k in selection_of_sheets}
 
-    # get info on the dataobject column, if there is any
-    path_info = classify_dataobject_column(sheets)
-    dataobject_column = path_info["dataobject_column"]
+    # get info on the item column, if there is any
+    path_info = classify_target_item_column(sheets)
+    item_column = path_info["item_column"]
 
-    # if there is a dedicated dataobject column,
+    # if there is a dedicated item column,
     # only keep the sheets that contain that column
-    if dataobject_column:
-        sheets = {k: v for k, v in sheets.items() if dataobject_column in v.columns}
+    if item_column:
+        sheets = {k: v for k, v in sheets.items() if item_column in v.columns}
 
     # start config yaml with the info we have
     for_yaml = {
         "sheets": list(sheets.keys()),
         "separator": sep,
+        "item_type": path_info["item_type"].name,
         "path_column": {
-            "column_name": dataobject_column,
+            "column_name": item_column,
             "path_type": path_info["path_type"],
             "pattern": path_info["pattern"],
             "workdir": path_info["workdir"],
@@ -79,7 +80,7 @@ def setup(example, output, sep=",", irods=False):
             col
             for sheet in sheets.values()
             for col in sheet.columns
-            if col != dataobject_column
+            if col != item_column
         )
     )
     column_filter = filter_columns(all_column_names)
@@ -126,44 +127,15 @@ def setup(example, output, sep=",", irods=False):
 
         # ask for multivalue columns
         multivalue_columns = ask_multivalue_columns(
-            list(col for col in columns_with_separator if col != dataobject_column)
+            list(col for col in columns_with_separator if col != item_column)
         )
         # update yaml with multivalue columns information
         for_yaml["multivalue_separator"] = multivalue_separator
         for_yaml["multivalue_columns"] = multivalue_columns
 
     # ask about schema metadata
-    if Confirm.ask("Do you have a ManGO metadata schema to validate your metadata?"):
-        # for now, only support local schemas, we are not checking in with iRODS (yet)
-        schema_file = ""
-        while not os.path.exists(schema_file):
-            # TODO add mango-mdschema validation OF the schema file
-            schema_file = Prompt.ask("Please provide a valid path for your schema: ")
-            if not schema_file:
-                print("Changed your mind? We won't use a schema then!")
-                break
-        if schema_file:
-            invalid_schema_metadata_question = (
-                "Should we discard invalid schema values? "
-                "(Otherwise, they will be added as non-schema metadata, "
-                "e.g. 'size=medium' instead of 'mgs.schema.size=medium')"
-            )
-            exclude_invalid_schema_metadata = Confirm.ask(
-                invalid_schema_metadata_question, default=False
-            )
-            nonschema_metadata_question = (
-                "Should we discard the columns not covered by schema? "
-                "(If you say no, they will be added as non-schema metadata):"
-            )
-
-            exclude_nonschema_metadata = Confirm.ask(
-                nonschema_metadata_question, default=True
-            )
-            for_yaml["mango_schema"] = {
-                "path": schema_file,
-                EXCLUDE_NONSCHEMA_MD: exclude_nonschema_metadata,
-                EXCLUDE_INVALID_SCHEMA_MD: exclude_invalid_schema_metadata,
-            }
+    if mango_schema_info := ask_about_schemas():
+        for_yaml["mango_schema"] = mango_schema_info
 
     # create yaml from the dictionary
     yml = yaml.dump(for_yaml, default_flow_style=False, indent=2)

@@ -4,7 +4,7 @@ from irods.exception import DataObjectDoesNotExist, CollectionDoesNotExist
 from irods.data_object import iRODSDataObject
 
 
-def create_file_object(path: str, session=None):
+def create_file_object(path: str | Path, session=None):
     """Turn path to file into a file-like object.
 
     Args:
@@ -31,7 +31,7 @@ def create_file_object(path: str, session=None):
     raise FileNotFoundError
 
 
-def parse_tabular_file(path: str, session=None, separator: str = ","):
+def parse_tabular_file(path: str | Path, session=None, separator: str = ","):
     """Parse tabular file.
 
     Args:
@@ -48,7 +48,7 @@ def parse_tabular_file(path: str, session=None, separator: str = ","):
     """
 
     file = create_file_object(path, session)
-    if path.endswith("xlsx"):
+    if file.name.endswith("xlsx"):
         # Local excel files are binary and should be opened with 'rb'.
         # However, iRODS implemented their 'open' method differently,
         # and there you should use just 'r' instead
