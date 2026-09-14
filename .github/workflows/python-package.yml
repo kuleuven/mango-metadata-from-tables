@@ -57,4 +57,4 @@ jobs:
       - name: Lint with pylint
         run: |
           # fail only if there are errors
-          uv run pylint src/mango-metadata-from-tables --fail-under=6
+          uv run pylint mango-metadata-from-tables --fail-under=6
