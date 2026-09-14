@@ -1,10 +1,10 @@
 import pandas as pd
-from pathlib import Path
+import pathlib
 from irods.exception import DataObjectDoesNotExist, CollectionDoesNotExist
 from irods.data_object import iRODSDataObject
 
 
-def create_file_object(path: str, session=None):
+def create_file_object(path: str | pathlib.Path, session=None):
     """Turn path to file into a file-like object.
 
     Args:
@@ -18,7 +18,7 @@ def create_file_object(path: str, session=None):
     Returns:
         pathlib.Path or irods.iRODSDataObject: File-like object to read metadata from.
     """
-    ppath = Path(path)
+    ppath = pathlib.Path(path)
     if ppath.suffix not in [".xlsx", ".csv", ".tsv"]:
         raise IOError("Filetype not accepted")
     if ppath.exists():
@@ -31,7 +31,7 @@ def create_file_object(path: str, session=None):
     raise FileNotFoundError
 
 
-def parse_tabular_file(path: str, session=None, separator: str = ","):
+def parse_tabular_file(path: str | pathlib.Path, session=None, separator: str = ","):
     """Parse tabular file.
 
     Args:
@@ -48,7 +48,7 @@ def parse_tabular_file(path: str, session=None, separator: str = ","):
     """
 
     file = create_file_object(path, session)
-    if path.endswith("xlsx"):
+    if file.name.endswith("xlsx"):
         # Local excel files are binary and should be opened with 'rb'.
         # However, iRODS implemented their 'open' method differently,
         # and there you should use just 'r' instead
@@ -59,8 +59,7 @@ def parse_tabular_file(path: str, session=None, separator: str = ","):
             sheets = {k.strip(): v for k, v in sheets.items()}
     else:
         # these types are not binary and should be opened with 'r'
-        with file.open("r") as f:
-            sheets = {"single_sheet": pd.read_csv(f, sep=separator)}
+       sheets = {"single_sheet": pd.read_csv(str(path), sep=separator)}
     for sheet in sheets.values():
         sheet.columns = sheet.columns.str.strip()
     return sheets

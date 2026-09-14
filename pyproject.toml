@@ -1,7 +1,7 @@
 [project]
 name = "mango-metadata-from-tables"
-version = "0.1.0"
-description = "Use this package to process tabular files in which each row represents an iRODS data object and each column contains either an identifier or metadata to add to this data object. It supports plain text files and Excel files, which could be stored locally or in iRODS itself."
+version = "1.0.0"
+description = "Use this package to process tabular files in which each row represents an iRODS data object or collection and each column contains either an identifier or metadata to add to this item. It supports plain text files and Excel files, which could be stored locally or in iRODS itself."
 readme = "README.md"
 authors = [
     { name = "Mariana Montes" },
@@ -11,12 +11,12 @@ requires-python = ">=3.10"
 dependencies = [
     "click>=8.3.2",
     "jinja2>=3.1.6",
-    "mango-mdschema==1.0.3",
+    "mango-mdschema==1.1.0",
     "odfpy>=1.4.1",
     "openpyxl==3.1.5",
-    "pandas==2.2.3",
+    "pandas>=2.2.3",
     "pygments>=2.20.0",
-    "python-irodsclient==3.2.0",
+    "python-irodsclient>=3.2.0",
     "pyyaml==6.0.2",
     "rich==13.9.4",
 ]
@@ -33,6 +33,8 @@ pythonpath = ["src"]
 
 [dependency-groups]
 dev = [
-    "pytest>=9.0.1",
+    "pylint>=4.0.8",
+    "pytest>=9.0.3,<9.1.0",
     "pytest-cases>=3.9.1",
+    "pytest-cov>=7.1.0",
 ]

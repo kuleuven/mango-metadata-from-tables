@@ -1,5 +1,6 @@
+import os.path
 import pandas as pd
-from . import console
+from . import console, ItemType, EXCLUDE_INVALID_SCHEMA_MD, EXCLUDE_NONSCHEMA_MD
 from rich.markdown import Markdown
 from rich.prompt import Prompt, Confirm
 from .preprocessing import (
@@ -49,8 +50,8 @@ def select_sheets(sheet_collection: dict) -> list:
     return selected_sheets
 
 
-def identify_dataobject_column(sheet_collection: dict) -> str:
-    """Ask user which column contains the unique data object information"""
+def identify_item_column(sheet_collection: dict) -> str:
+    """Ask user which column contains the unique data object or collection information"""
     columns = set([col for sheet in sheet_collection.values() for col in sheet.columns])
     dfs = "dataframe has" if len(sheet_collection) == 1 else "dataframes have"
     cols = "1 column" if len(columns) == 1 else f"{len(columns)} columns"
@@ -58,7 +59,7 @@ def identify_dataobject_column(sheet_collection: dict) -> str:
     column_list = "\n\n".join(f"- {col}" for col in columns)
     console.print(Markdown(column_intro + column_list))
     return Prompt.ask(
-        "Which column contains an unique identifier for the target data object?",
+        "Which column contains an unique identifier for the target item?",
         choices=columns,
     )
 
@@ -80,31 +81,40 @@ def test_pattern_on_first_column(sheet_collection: dict[pd.DataFrame], pattern: 
     return result
 
 
-def classify_dataobject_column(sheet_collection: dict) -> dict:
+def classify_target_item_column(
+    sheet_collection: dict,
+) -> dict:
 
     import re
 
+    item_type = Prompt.ask(
+        "Will you be annotating data objects or colletions?", choices=ItemType
+    )
+
     message = """
-    In order to add metadata to your data objects, each row needs
-    to have a reference to your data object.
+    In order to add metadata to your TARGET_ITEMs, each row needs
+    to have a reference to your TARGET_ITEM.
 
-    For your table, how can we find the data object in each row?
-    
+    For your table, how can we find the TARGET_ITEM in each row?
 
-    1) A column contains the absolute path to the data object
-    2) A column contains the relative path to the data object
-    3) A column contains (part of the) data object name
-    4) The absolute path of the data object can be reconstructed by combining 
+    1) A column contains the absolute path to the TARGET_ITEM
+    2) A column contains the relative path to the TARGET_ITEM
+    3) The absolute path of the data TARGET_ITEM can be reconstructed by combining 
        info of multiple columns and strings.
     """
+    message = message.replace("TARGET_ITEM", item_type)
+    choice_mapping = {"1": "absolute", "2": "relative", "3": "pattern"}
 
-    answer = Prompt.ask(message, choices=["1", "2", "3", "4"])
-    choice_mapping = {"1": "absolute", "2": "relative", "3": "part", "4": "pattern"}
+    if item_type == ItemType.DATAOBJECT.value:
+        message += "4) A column contains part of the data object name\n"
+        choice_mapping["4"] = "part"
+
+    answer = Prompt.ask(message, choices=list(choice_mapping.keys()))
     path_type = choice_mapping[answer]
     workdir = ""
     pattern = ""
     if path_type == "pattern":
-        dataobject_column = ""
+        item_column = ""
         pattern_question = """
     Provide a path pattern using double curly braces ({{ }}) to reference column names.
     Example: '/zone/home/project/{{ lab }}_{{ experiment }}.txt' will use values from the 'lab' and 'experiment' columns in each row.
@@ -128,7 +138,7 @@ def classify_dataobject_column(sheet_collection: dict) -> dict:
         )
 
     else:
-        dataobject_column = identify_dataobject_column(sheet_collection)
+        item_column = identify_item_column(sheet_collection)
         if path_type in ["relative", "part"]:
             while not re.match("/[a-z_]+/home/[^/]+/?", workdir):
                 workdir = Prompt.ask(
@@ -138,17 +148,20 @@ def classify_dataobject_column(sheet_collection: dict) -> dict:
         if path_type == "relative":
             console.print(
                 Markdown(
-                    f"Great! The relative paths in `{dataobject_column}` will be chained to `{workdir}`!"
+                    f"Great! The relative paths in `{item_column}` will be chained to `{workdir}`!"
                 )
             )
         elif path_type == "part":
             console.print(
                 Markdown(
-                    f"Great! Data objects will be found by querying the contents of `{dataobject_column}` within `{workdir}`!"
+                    f"Great! Data objects will be found by querying the contents of `{item_column}` within `{workdir}`!"
                 )
             )
+    enum_mapping = {x.value: x for x in ItemType}
+
     return {
-        "dataobject_column": dataobject_column,
+        "item_type": enum_mapping[item_type],
+        "item_column": item_column,
         "path_type": path_type,
         "pattern": pattern,
         "workdir": workdir,
@@ -227,3 +240,50 @@ def list_columns_with_character(
         and df[col].dtype == object
         and df[col].astype(str).str.contains(character, na=False, regex=False).any()
     )  # not sure about how this gets split in rows
+
+
+def ask_about_schemas() -> dict | None:
+    if not Confirm.ask(
+        "Do you have a ManGO metadata schema to validate your metadata?"
+    ):
+        return
+    if Confirm.ask(
+        "Does the schema exist in ManGO? (We cannot verify the correctness at this stage yet)"
+    ):
+        realm = Prompt.ask(
+            "Please provide the name of the project/realm the schema belongs to"
+        )
+        schema = Prompt.ask(
+            f"Please provide the name of the published schema in the {realm} realm"
+        )
+        # @todo validate against iRODS?
+        schema_file = {"realm": realm, "schema": schema}
+    else:
+        schema_file = ""
+        while not os.path.exists(schema_file):
+            # TODO add mango-mdschema validation OF the schema file
+            schema_file = Prompt.ask("Please provide a valid path for your schema: ")
+            if not schema_file:
+                print("Changed your mind? We won't use a schema then!")
+                break
+    if not schema_file:
+        return
+    invalid_schema_metadata_question = (
+        "Should we discard invalid schema values? "
+        "(Otherwise, they will be added as non-schema metadata, "
+        "e.g. 'size=medium' instead of 'mgs.schema.size=medium')"
+    )
+    exclude_invalid_schema_metadata = Confirm.ask(
+        invalid_schema_metadata_question, default=False
+    )
+    nonschema_metadata_question = (
+        "Should we discard the columns not covered by schema? "
+        "(If you say no, they will be added as non-schema metadata):"
+    )
+
+    exclude_nonschema_metadata = Confirm.ask(nonschema_metadata_question, default=True)
+    return {
+        "path": schema_file,
+        EXCLUDE_NONSCHEMA_MD: exclude_nonschema_metadata,
+        EXCLUDE_INVALID_SCHEMA_MD: exclude_invalid_schema_metadata,
+    }
