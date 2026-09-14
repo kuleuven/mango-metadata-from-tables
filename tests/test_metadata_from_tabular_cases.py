@@ -15,19 +15,22 @@ def get_schema_version(version: int) -> iRODSMeta:
     return iRODSMeta(f"mgs.{schema_name}.__version__", f"{version}.0.0")
 
 
-TEST_DIR = os.path.dirname(os.path.abspath(__file__))
-TESTDATA_FOLDER = TEST_DIR + "/testdata"
+TEST_DIR = pathlib.Path(__file__).absolute().parent
+TESTDATA_FOLDER = TEST_DIR / "testdata"
 print(f"running tests from {TESTDATA_FOLDER}")
+
+def generate_test_path(*args):
+    return str(pathlib.Path(TESTDATA_FOLDER, *args))
 # region inputs
 
 basic_examples = [
-    {"input_file": f"{TESTDATA_FOLDER}/testdata.csv", "config": {"separator": ";"}},
+    {"input_file": generate_test_path("testdata.csv"), "config": {"separator": ";"}},
     {
-        "input_file": f"{TESTDATA_FOLDER}/testdata.xlsx",
+        "input_file": generate_test_path("testdata.xlsx"),
         "config": {"sheets": ["Tabelle1"]},
     },
     {
-        "input_file": f"{TESTDATA_FOLDER}/testdata_relative_path.xlsx",
+        "input_file": generate_test_path("testdata_relative_path.xlsx"),
         "config": {
             "path_column": {
                 "column_name": "file",
@@ -44,12 +47,12 @@ basic_examples = [
 path_from_columns_examples = [
     {
         "id": "basic",
-        "input_file": f"{TESTDATA_FOLDER}/testdata_path_from_columns.csv",
+        "input_file": generate_test_path("testdata_path_from_columns.csv"),
         "pattern": "/icts/home/datateam_icts_icts_quality/mango-metadata-from-tables/{{size}}_shapes/a_{{color}}_{{shape}}.jpg",
     },
     {
         "id": "date_filter",
-        "input_file": f"{TESTDATA_FOLDER}/testdata_path_from_columns_with_filters.csv",
+        "input_file": generate_test_path("testdata_path_from_columns_with_filters.csv"),
         "pattern": (
             "/icts/home/datateam_icts_icts_quality/mango-metadata-from-tables/"
             "{{ size }}_shapes/{{ shape|lower }}_{{ date|date_format(input_format='%d/%m/%Y',output_format='%d%m%Y')}}.jpg"
@@ -202,7 +205,7 @@ def as_collection(mapping):
         """Just replace the name, removing the extension;
         if there is a number, it replaces the name with subcoll+number.
         Otherwise, just the stem"""
-        path_as_path = pathlib.PosixPath(path)
+        path_as_path = pathlib.PurePosixPath(path)
         parent_collection = path_as_path.parent
         no_stem = path_as_path.stem
         m = re.search(r"\d+", path_as_path.name)
@@ -247,7 +250,7 @@ def case_whitelist():
 def case_multiple_sheets():
     config_as_file = config_dict_to_yaml({"sheets": ["Tabelle1", "Sheet1"]})
     return (
-        f"{TESTDATA_FOLDER}/testdata_multiple_sheets.xlsx",
+        generate_test_path("testdata_multiple_sheets.xlsx"),
         config_as_file,
         multiple_sheets_metadata(basic_metadata),
     )
@@ -258,7 +261,7 @@ def case_multiple_values():
         {"multivalue_columns": ["author"], "multivalue_separator": ";"}
     )
     return (
-        f"{TESTDATA_FOLDER}/testdata_multiple_values.csv",
+        generate_test_path("testdata_multiple_values.csv"),
         config_as_file,
         multiple_values(basic_metadata),
     )
@@ -273,7 +276,7 @@ def case_multiple_values_multiple_sheets():
         }
     )
     return (
-        f"{TESTDATA_FOLDER}/testdata_multiple_values_multiple_sheets.xlsx",
+        generate_test_path("testdata_multiple_values_multiple_sheets.xlsx"),
         config_as_file,
         multiple_values_multiple_sheets(basic_metadata),
     )
@@ -302,8 +305,8 @@ def case_path_from_columns(mapping):
 @parametrize(
     "path",
     [
-        f"{TESTDATA_FOLDER}/test-excel2avus-1.0.0-published.json",
-        f"{TESTDATA_FOLDER}/test-excel2avus-2-2.0.0-published.json",
+        generate_test_path("test-excel2avus-1.0.0-published.json"),
+        generate_test_path("test-excel2avus-2-2.0.0-published.json"),
         "file_does_not_exist",
     ],
 )
@@ -312,7 +315,7 @@ def case_path_from_columns(mapping):
 def case_schema_metadata(
     path, exclude_non_schema_metadata, exclude_invalid_schema_metadata
 ):
-    input_file = f"{TESTDATA_FOLDER}/testdata.csv"
+    input_file = generate_test_path("testdata.csv")
     custom_config = {
         "separator": ";",
         "mango_schema": {
@@ -368,7 +371,7 @@ def case_schema_metadata(
 def case_irods_schema_metadata(
     schema_name, exclude_non_schema_metadata, exclude_invalid_schema_metadata
 ):
-    input_file = f"{TESTDATA_FOLDER}/testdata.csv"
+    input_file = generate_test_path("testdata.csv")
     custom_config = {
         "separator": ";",
         "mango_schema": {
@@ -412,7 +415,7 @@ def case_irods_schema_metadata(
 def case_collections():
     config_as_file = config_dict_to_yaml({"item_type": "COLLECTION", "separator": ";"})
     return (
-        f"{TESTDATA_FOLDER}/testdata_colls.csv",
+        generate_test_path("testdata_colls.csv"),
         config_as_file,
         as_collection(basic_metadata),
     )
@@ -424,11 +427,11 @@ def case_collections():
 # @todo add tests for errors!
 @case(tags=["error"])
 def case_error_schema_metadata():
-    input_file = f"{TESTDATA_FOLDER}/testdata_missing_column.csv"
+    input_file = generate_test_path("testdata_missing_column.csv")
     custom_config = {
         "separator": ";",
         "mango_schema": {
-            "path": f"{TESTDATA_FOLDER}/test-excel2avus-1.0.0-published.json",
+            "path": generate_test_path("test-excel2avus-1.0.0-published.json"),
             "exclude_non_schema_metadata": True,
             "exclude_invalid_schema_metadata": True,
         },

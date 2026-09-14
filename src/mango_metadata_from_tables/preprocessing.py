@@ -108,7 +108,7 @@ def chain_collection_and_filename(
 ):
     """Renames the column with the relative data object or collection path and completes it with the parent collection path"""
     df = df.rename(columns={filename_column: DATAOBJECT})
-    df[DATAOBJECT] = [str(pathlib.PosixPath(workingdirectory) / pathlib.PosixPath(x)) for x in df[DATAOBJECT]]
+    df[DATAOBJECT] = [str(pathlib.PurePosixPath(workingdirectory, x)) for x in df[DATAOBJECT]]
     return df
 
 
