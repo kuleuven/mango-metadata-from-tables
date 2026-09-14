@@ -1,6 +1,6 @@
 [project]
 name = "mango-metadata-from-tables"
-version = "0.1.0"
+version = "1.0.0"
 description = "Use this package to process tabular files in which each row represents an iRODS data object or collection and each column contains either an identifier or metadata to add to this item. It supports plain text files and Excel files, which could be stored locally or in iRODS itself."
 readme = "README.md"
 authors = [

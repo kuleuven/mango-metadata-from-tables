@@ -1,6 +1,6 @@
-# Python module to extract metadata from tables
+# Python package to extract metadata from tables
 
-Use this module to process tabular files in which each row represents an iRODS data object or collection
+Use this package to process tabular files in which each row represents an iRODS data object or collection
 and each column contains either an identifier or metadata to add to this item.
 It supports plain text files and Excel files, which could be stored locally or in iRODS itself.
 
