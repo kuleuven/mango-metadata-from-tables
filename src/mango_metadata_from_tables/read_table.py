@@ -1,10 +1,10 @@
 import pandas as pd
-from pathlib import Path
+import pathlib
 from irods.exception import DataObjectDoesNotExist, CollectionDoesNotExist
 from irods.data_object import iRODSDataObject
 
 
-def create_file_object(path: str | Path, session=None):
+def create_file_object(path: str | pathlib.PosixPath, session=None):
     """Turn path to file into a file-like object.
 
     Args:
@@ -18,7 +18,7 @@ def create_file_object(path: str | Path, session=None):
     Returns:
         pathlib.Path or irods.iRODSDataObject: File-like object to read metadata from.
     """
-    ppath = Path(path)
+    ppath = pathlib.PosixPath(path)
     if ppath.suffix not in [".xlsx", ".csv", ".tsv"]:
         raise IOError("Filetype not accepted")
     if ppath.exists():
@@ -31,7 +31,7 @@ def create_file_object(path: str | Path, session=None):
     raise FileNotFoundError
 
 
-def parse_tabular_file(path: str | Path, session=None, separator: str = ","):
+def parse_tabular_file(path: str | pathlib.Path, session=None, separator: str = ","):
     """Parse tabular file.
 
     Args:

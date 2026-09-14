@@ -202,7 +202,7 @@ def as_collection(mapping):
         """Just replace the name, removing the extension;
         if there is a number, it replaces the name with subcoll+number.
         Otherwise, just the stem"""
-        path_as_path = pathlib.Path(path)
+        path_as_path = pathlib.PosixPath(path)
         parent_collection = path_as_path.parent
         no_stem = path_as_path.stem
         m = re.search(r"\d+", path_as_path.name)

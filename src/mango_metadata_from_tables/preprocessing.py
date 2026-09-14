@@ -4,7 +4,7 @@ import pandas as pd
 import click
 import jinja2
 import datetime
-from pathlib import Path
+import pathlib
 from irods.session import iRODSSession
 from irods.column import Criterion
 from irods.models import Collection, DataObject
@@ -108,7 +108,7 @@ def chain_collection_and_filename(
 ):
     """Renames the column with the relative data object or collection path and completes it with the parent collection path"""
     df = df.rename(columns={filename_column: DATAOBJECT})
-    df[DATAOBJECT] = [str(Path(workingdirectory) / Path(x)) for x in df[DATAOBJECT]]
+    df[DATAOBJECT] = [str(pathlib.PosixPath(workingdirectory) / pathlib.PosixPath(x)) for x in df[DATAOBJECT]]
     return df
 
 
@@ -158,7 +158,7 @@ def validate_schema_columns(sheets: dict[pd.DataFrame], schema: Schema) -> list[
 
 
 def process_tabular_file(
-    filename: str | Path,
+    filename: str | pathlib.Path,
     config: io.StringIO | click.File,
     session: iRODSSession | None = None,
 ) -> dict:
