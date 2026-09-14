@@ -58,4 +58,4 @@ jobs:
         run: |
           # fail only if there are errors
           ls
-          uv run pylint mango-metadata-from-tables --fail-under=6
+          uv run pylint src/mango_metadata_from_tables --fail-under=6
