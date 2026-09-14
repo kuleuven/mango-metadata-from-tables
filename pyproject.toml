@@ -33,6 +33,7 @@ pythonpath = ["src"]
 
 [dependency-groups]
 dev = [
+    "pylint>=4.0.8",
     "pytest>=9.0.3,<9.1.0",
     "pytest-cases>=3.9.1",
     "pytest-cov>=7.1.0",
