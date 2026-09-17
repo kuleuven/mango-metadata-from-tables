@@ -1,51 +1,60 @@
-import os
 import io
+import os
+import pathlib
+import re
 import yaml
 
 from irods.meta import iRODSMeta
-from pytest_cases import parametrize
+from pytest_cases import parametrize, case
 
 
 def get_schema_version(version: int) -> iRODSMeta:
-    return iRODSMeta("mgs.test.__version__", f"{version}.0.0")
+    schema_name = "test-excel2avus"
+    if version != 1:
+        schema_name += f"-{version}"
+    return iRODSMeta(f"mgs.{schema_name}.__version__", f"{version}.0.0")
 
 
-TEST_DIR = os.path.dirname(os.path.abspath(__file__))
-TESTDATA_FOLDER = TEST_DIR + "/testdata"
+TEST_DIR = pathlib.Path(__file__).absolute().parent
+TESTDATA_FOLDER = TEST_DIR / "testdata"
 print(f"running tests from {TESTDATA_FOLDER}")
+
+def generate_test_path(*args):
+    return str(pathlib.Path(TESTDATA_FOLDER, *args))
 # region inputs
 
 basic_examples = [
-    {"input_file": f"{TESTDATA_FOLDER}/testdata.csv", "config": {"separator": ";"}},
+    {"input_file": generate_test_path("testdata.csv"), "config": {"separator": ";"}},
     {
-        "input_file": f"{TESTDATA_FOLDER}/testdata.xlsx",
+        "input_file": generate_test_path("testdata.xlsx"),
         "config": {"sheets": ["Tabelle1"]},
     },
     {
-        "input_file": f"{TESTDATA_FOLDER}/testdata_relative_path.xlsx",
+        "input_file": generate_test_path("testdata_relative_path.xlsx"),
         "config": {
             "path_column": {
                 "column_name": "file",
                 "path_type": "relative",
-                "workdir": "/icts/home/datateam_icts_icts_test",
+                "workdir": "/icts/home/datateam_icts_icts_quality",
             },
             "sheets": ["Tabelle1"],
         },
     },
 ]
 
+
 # this could be expanded to test other filters eventually
 path_from_columns_examples = [
     {
         "id": "basic",
-        "input_file": f"{TESTDATA_FOLDER}/testdata_path_from_columns.csv",
-        "pattern": "/icts/home/datateam_icts_icts_test/mango-metadata-from-tables/{{size}}_shapes/a_{{color}}_{{shape}}.jpg",
+        "input_file": generate_test_path("testdata_path_from_columns.csv"),
+        "pattern": "/icts/home/datateam_icts_icts_quality/mango-metadata-from-tables/{{size}}_shapes/a_{{color}}_{{shape}}.jpg",
     },
     {
         "id": "date_filter",
-        "input_file": f"{TESTDATA_FOLDER}/testdata_path_from_columns_with_filters.csv",
+        "input_file": generate_test_path("testdata_path_from_columns_with_filters.csv"),
         "pattern": (
-            "/icts/home/datateam_icts_icts_test/mango-metadata-from-tables/"
+            "/icts/home/datateam_icts_icts_quality/mango-metadata-from-tables/"
             "{{ size }}_shapes/{{ shape|lower }}_{{ date|date_format(input_format='%d/%m/%Y',output_format='%d%m%Y')}}.jpg"
         ),
     },
@@ -53,7 +62,8 @@ path_from_columns_examples = [
 
 
 default_config = {
-    "path_column": {"column_name": "dataobject", "path_type": "absolute"},
+    "item_type": "DATAOBJECT",
+    "path_column": {"column_name": "item", "path_type": "absolute"},
     "separator": ",",
     "sheets": ["single_sheet"],
 }
@@ -70,17 +80,17 @@ def config_dict_to_yaml(config_dict: dict) -> io.StringIO:
 # region outputs
 
 basic_metadata = {
-    "/icts/home/datateam_icts_icts_test/mango-metadata-from-tables/file1.txt": [
+    "/icts/home/datateam_icts_icts_quality/mango-metadata-from-tables/file1.txt": [
         iRODSMeta("size", "small"),
         iRODSMeta("color", "green"),
         iRODSMeta("shape", "star"),
     ],
-    "/icts/home/datateam_icts_icts_test/mango-metadata-from-tables/file2.txt": [
+    "/icts/home/datateam_icts_icts_quality/mango-metadata-from-tables/file2.txt": [
         iRODSMeta("size", "medium"),
         iRODSMeta("color", "red"),
         iRODSMeta("shape", "heart"),
     ],
-    "/icts/home/datateam_icts_icts_test/mango-metadata-from-tables/file3.txt": [
+    "/icts/home/datateam_icts_icts_quality/mango-metadata-from-tables/file3.txt": [
         iRODSMeta("size", "big"),
         iRODSMeta("color", "blue"),
         iRODSMeta("shape", "square"),
@@ -117,9 +127,12 @@ pattern_path_output = {
 }
 
 
-def namespace_metadata(avu: iRODSMeta) -> iRODSMeta:
+def namespace_metadata(avu: iRODSMeta, v="1") -> iRODSMeta:
     """Turn an AVU into its schema counterpart ('test' schema)."""
-    return iRODSMeta(f"mgs.test.{avu.name}", avu.value)
+    schema_name = "test-excel2avus"
+    if v != "1":
+        schema_name += "-" + v
+    return iRODSMeta(f"mgs.{schema_name}.{avu.name}", avu.value)
 
 
 def namespace_all_metadata(avu_list: list[iRODSMeta]) -> list[iRODSMeta]:
@@ -134,7 +147,7 @@ def namespace_partial_metadata(avu_list: list[iRODSMeta]) -> list[iRODSMeta]:
         if avu.name == "color" or (
             avu.name == "size" and avu.value in ["small", "big"]
         ):
-            return namespace_metadata(avu)
+            return namespace_metadata(avu, v="2")
         return avu
 
     return [filter_metadata(avu) for avu in avu_list]
@@ -142,33 +155,27 @@ def namespace_partial_metadata(avu_list: list[iRODSMeta]) -> list[iRODSMeta]:
 
 def multiple_sheets_metadata(metadata: dict) -> dict:
     """Add the AVU of the multiple sheets case."""
-    md_copy = {
-        dataobject: [avu for avu in avu_list]
-        for dataobject, avu_list in metadata.items()
-    }
+    md_copy = {item: [avu for avu in avu_list] for item, avu_list in metadata.items()}
     new_md = iRODSMeta("vibe", "like a forest on a sunny day")
     md_copy[
-        "/icts/home/datateam_icts_icts_test/mango-metadata-from-tables/file3.txt"
+        "/icts/home/datateam_icts_icts_quality/mango-metadata-from-tables/file3.txt"
     ].append(new_md)
     return md_copy
 
 
 def multiple_values(metadata: dict) -> dict:
     """Add the AVUs of the multiple values case."""
-    md_copy = {
-        dataobject: [avu for avu in avu_list]
-        for dataobject, avu_list in metadata.items()
-    }
+    md_copy = {item: [avu for avu in avu_list] for item, avu_list in metadata.items()}
     jane_doe = iRODSMeta("author", "Jane Doe")
     john_doe = iRODSMeta("author", "John Doe")
     md_copy[
-        "/icts/home/datateam_icts_icts_test/mango-metadata-from-tables/file1.txt"
+        "/icts/home/datateam_icts_icts_quality/mango-metadata-from-tables/file1.txt"
     ] += [john_doe, jane_doe]
     md_copy[
-        "/icts/home/datateam_icts_icts_test/mango-metadata-from-tables/file2.txt"
+        "/icts/home/datateam_icts_icts_quality/mango-metadata-from-tables/file2.txt"
     ] += [john_doe]
     md_copy[
-        "/icts/home/datateam_icts_icts_test/mango-metadata-from-tables/file3.txt"
+        "/icts/home/datateam_icts_icts_quality/mango-metadata-from-tables/file3.txt"
     ] += [jane_doe]
     return md_copy
 
@@ -179,7 +186,7 @@ def multiple_values_multiple_sheets(metadata: dict) -> dict:
 
     # adding metadata for second sheet
     md_copy[
-        "/icts/home/datateam_icts_icts_test/mango-metadata-from-tables/file4.txt"
+        "/icts/home/datateam_icts_icts_quality/mango-metadata-from-tables/file4.txt"
     ] = [
         iRODSMeta("color", "purple"),
         iRODSMeta("size", "big"),
@@ -191,6 +198,22 @@ def multiple_values_multiple_sheets(metadata: dict) -> dict:
         ),
     ]
     return md_copy
+
+
+def as_collection(mapping):
+    def object_to_collection(path):
+        """Just replace the name, removing the extension;
+        if there is a number, it replaces the name with subcoll+number.
+        Otherwise, just the stem"""
+        path_as_path = pathlib.PurePosixPath(path)
+        parent_collection = path_as_path.parent
+        no_stem = path_as_path.stem
+        m = re.search(r"\d+", path_as_path.name)
+        if m is not None:
+            no_stem = f"subcoll{m.group()}"
+        return str(parent_collection / no_stem)
+
+    return {object_to_collection(path): avus for path, avus in mapping.items()}
 
 
 # endregion
@@ -207,8 +230,8 @@ def case_basic(mapping):
 def case_blacklist():
     config_as_file = config_dict_to_yaml({"separator": ";", "blacklist": ["color"]})
     expected_output = {
-        dataobject: [avu for avu in list_of_avus if avu.name != "color"]
-        for dataobject, list_of_avus in basic_metadata.items()
+        item: [avu for avu in list_of_avus if avu.name != "color"]
+        for item, list_of_avus in basic_metadata.items()
     }
     return f"{TESTDATA_FOLDER}/testdata.csv", config_as_file, expected_output
 
@@ -218,8 +241,8 @@ def case_whitelist():
         {"separator": ";", "whitelist": ["shape", "size"]}
     )
     expected_output = {
-        dataobject: [avu for avu in list_of_avus if avu.name != "color"]
-        for dataobject, list_of_avus in basic_metadata.items()
+        item: [avu for avu in list_of_avus if avu.name != "color"]
+        for item, list_of_avus in basic_metadata.items()
     }
     return f"{TESTDATA_FOLDER}/testdata.csv", config_as_file, expected_output
 
@@ -227,7 +250,7 @@ def case_whitelist():
 def case_multiple_sheets():
     config_as_file = config_dict_to_yaml({"sheets": ["Tabelle1", "Sheet1"]})
     return (
-        f"{TESTDATA_FOLDER}/testdata_multiple_sheets.xlsx",
+        generate_test_path("testdata_multiple_sheets.xlsx"),
         config_as_file,
         multiple_sheets_metadata(basic_metadata),
     )
@@ -238,7 +261,7 @@ def case_multiple_values():
         {"multivalue_columns": ["author"], "multivalue_separator": ";"}
     )
     return (
-        f"{TESTDATA_FOLDER}/testdata_multiple_values.csv",
+        generate_test_path("testdata_multiple_values.csv"),
         config_as_file,
         multiple_values(basic_metadata),
     )
@@ -253,7 +276,7 @@ def case_multiple_values_multiple_sheets():
         }
     )
     return (
-        f"{TESTDATA_FOLDER}/testdata_multiple_values_multiple_sheets.xlsx",
+        generate_test_path("testdata_multiple_values_multiple_sheets.xlsx"),
         config_as_file,
         multiple_values_multiple_sheets(basic_metadata),
     )
@@ -270,7 +293,7 @@ def case_path_from_columns(mapping):
             }
         }
     )
-    main_coll = "/icts/home/datateam_icts_icts_test/mango-metadata-from-tables"
+    main_coll = "/icts/home/datateam_icts_icts_quality/mango-metadata-from-tables"
     # apply collection name to data object paths
     expected_output = {
         f"{main_coll}/{fname}": avu_list
@@ -282,8 +305,8 @@ def case_path_from_columns(mapping):
 @parametrize(
     "path",
     [
-        f"{TESTDATA_FOLDER}/test-1.0.0-published.json",
-        f"{TESTDATA_FOLDER}/test-2.0.0-published.json",
+        generate_test_path("test-excel2avus-1.0.0-published.json"),
+        generate_test_path("test-excel2avus-2-2.0.0-published.json"),
         "file_does_not_exist",
     ],
 )
@@ -292,7 +315,7 @@ def case_path_from_columns(mapping):
 def case_schema_metadata(
     path, exclude_non_schema_metadata, exclude_invalid_schema_metadata
 ):
-    input_file = f"{TESTDATA_FOLDER}/testdata.csv"
+    input_file = generate_test_path("testdata.csv")
     custom_config = {
         "separator": ";",
         "mango_schema": {
@@ -304,48 +327,111 @@ def case_schema_metadata(
     if path == "file_does_not_exist":
         # case: there is no valid schema
         expected_output = basic_metadata
-    elif path == f"{TESTDATA_FOLDER}/test-1.0.0-published.json":
+    elif "1.0.0" in path:
         # case: the valid schema matches all data
         expected_output = {
-            dataobject: namespace_all_metadata(list_of_avus) + [get_schema_version(1)]
-            for dataobject, list_of_avus in basic_metadata.items()
+            item: namespace_all_metadata(list_of_avus) + [get_schema_version(1)]
+            for item, list_of_avus in basic_metadata.items()
         }
     else:
         # case: partial-match schema
         expected_output = {
-            dataobject: namespace_partial_metadata(list_of_avus)
-            + [get_schema_version(2)]
-            for dataobject, list_of_avus in basic_metadata.items()
+            item: namespace_partial_metadata(list_of_avus) + [get_schema_version(2)]
+            for item, list_of_avus in basic_metadata.items()
         }
         if exclude_invalid_schema_metadata:
             # cases: invalid schema metadata is excluded
             expected_output = {
-                dataobject: [avu for avu in list_of_avus if avu.name != "size"]
-                for dataobject, list_of_avus in expected_output.items()
+                item: [avu for avu in list_of_avus if avu.name != "size"]
+                for item, list_of_avus in expected_output.items()
             }
         if exclude_non_schema_metadata:
             # cases: non-schema metadata is excluded
             expected_output = {
-                dataobject: [
+                item: [
                     avu
                     for avu in list_of_avus
                     if avu.name.startswith("mgs") or avu.name == "size"
                 ]
-                for dataobject, list_of_avus in expected_output.items()
+                for item, list_of_avus in expected_output.items()
             }
     return input_file, config_dict_to_yaml(custom_config), expected_output
+
+
+@parametrize(
+    "schema_name",
+    [
+        "test-excel2avus",  # same as version 1 above
+        "test-excel2avus-2",  # same as version 2 above
+    ],
+)
+@parametrize("exclude_non_schema_metadata", [True, False])
+@parametrize("exclude_invalid_schema_metadata", [True, False])
+@case(tags="irods")
+def case_irods_schema_metadata(
+    schema_name, exclude_non_schema_metadata, exclude_invalid_schema_metadata
+):
+    input_file = generate_test_path("testdata.csv")
+    custom_config = {
+        "separator": ";",
+        "mango_schema": {
+            "path": {"realm": "datateam_icts_icts_quality", "schema": schema_name},
+            "exclude_non_schema_metadata": exclude_non_schema_metadata,
+            "exclude_invalid_schema_metadata": exclude_invalid_schema_metadata,
+        },
+    }
+    if schema_name == "test-excel2avus":
+        # case: the valid schema matches all data
+        expected_output = {
+            item: namespace_all_metadata(list_of_avus) + [get_schema_version(1)]
+            for item, list_of_avus in basic_metadata.items()
+        }
+    else:
+        # case: partial-match schema
+        expected_output = {
+            item: namespace_partial_metadata(list_of_avus) + [get_schema_version(2)]
+            for item, list_of_avus in basic_metadata.items()
+        }
+        if exclude_invalid_schema_metadata:
+            # cases: invalid schema metadata is excluded
+            expected_output = {
+                item: [avu for avu in list_of_avus if avu.name != "size"]
+                for item, list_of_avus in expected_output.items()
+            }
+        if exclude_non_schema_metadata:
+            # cases: non-schema metadata is excluded
+            expected_output = {
+                item: [
+                    avu
+                    for avu in list_of_avus
+                    if avu.name.startswith("mgs") or avu.name == "size"
+                ]
+                for item, list_of_avus in expected_output.items()
+            }
+    return input_file, config_dict_to_yaml(custom_config), expected_output
+
+
+# ALWAYS USE 'collections' IN THE NAME OF A CASE WITH COLLECTIONS
+def case_collections():
+    config_as_file = config_dict_to_yaml({"item_type": "COLLECTION", "separator": ";"})
+    return (
+        generate_test_path("testdata_colls.csv"),
+        config_as_file,
+        as_collection(basic_metadata),
+    )
 
 
 # endregion
 
 
 # @todo add tests for errors!
-def error_schema_metadata():
-    input_file = f"{TESTDATA_FOLDER}/testdata_missing_column.csv"
+@case(tags=["error"])
+def case_error_schema_metadata():
+    input_file = generate_test_path("testdata_missing_column.csv")
     custom_config = {
         "separator": ";",
         "mango_schema": {
-            "path": f"{TESTDATA_FOLDER}/test-1.0.0-published.json",
+            "path": generate_test_path("test-excel2avus-1.0.0-published.json"),
             "exclude_non_schema_metadata": True,
             "exclude_invalid_schema_metadata": True,
         },
