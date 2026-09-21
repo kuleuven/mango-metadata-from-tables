@@ -24,6 +24,9 @@ dependencies = [
 [project.scripts]
 mango-metadata-from-tables = "mango_metadata_from_tables.cli:mdtab"
 
+[project.urls]
+repository = "https://github.com/kuleuven/mango-metadata-from-tables"
+
 [build-system]
 requires = ["uv_build>=0.9.10,<0.10.0"]
 build-backend = "uv_build"
@@ -38,3 +41,4 @@ dev = [
     "pytest-cases>=3.9.1",
     "pytest-cov>=7.1.0",
 ]
+
