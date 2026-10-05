@@ -4,15 +4,23 @@ Use this package to process tabular files in which each row represents an iRODS 
 and each column contains either an identifier or metadata to add to this item.
 It supports plain text files and Excel files, which could be stored locally or in iRODS itself.
 
-To get started, create a virtual environment with pip and install the dependencies described in the [requirements file](./requirements.txt):
+To get started, create a virtual environment with pip or uv and install the package:
 
 ```sh
+# with pip
 python -m venv venv
 source venv/bin/activate
-pip install -e .
+pip install mango-metadata-from-tables
 ```
 
-Now, you can run the script with the command `mango-metadata-from-tables`.  
+```sh
+# with uv
+uv init <my-project>
+uv add mango-metadata-from-tables
+```
+
+Now, you can run the script with the command `mango-metadata-from-tables`
+(or `uv run mango-metadata-from-tables`).
 
 
 ## Usage

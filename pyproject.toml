@@ -1,6 +1,6 @@
 [project]
 name = "mango-metadata-from-tables"
-version = "1.0.0"
+version = "1.0.1"
 description = "Use this package to process tabular files in which each row represents an iRODS data object or collection and each column contains either an identifier or metadata to add to this item. It supports plain text files and Excel files, which could be stored locally or in iRODS itself."
 readme = "README.md"
 authors = [
@@ -30,6 +30,12 @@ repository = "https://github.com/kuleuven/mango-metadata-from-tables"
 [build-system]
 requires = ["uv_build>=0.9.10,<0.10.0"]
 build-backend = "uv_build"
+
+[[tool.uv.index]]
+name = "testpypi"
+url = "https://test.pypi.org/simple/"
+publish-url = "https://test.pypi.org/legacy"
+explicit = true
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]
