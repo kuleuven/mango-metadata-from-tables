@@ -56,7 +56,7 @@ with the same properties as the original one.
 
 ```sh
 mango-metadata-from-tables setup tests/testdata/testdata.csv test-config.yaml --sep ";"
-mango-metadata-from-tables run test/testdata/testdata.csv --config test-config.yaml --dry-run
+mango-metadata-from-tables run tests/testdata/testdata.csv --config test-config.yaml --dry-run
 ```
 
 ### A larger Excel file with multiple sheets
