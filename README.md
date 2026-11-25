@@ -1,18 +1,26 @@
-# Python module to extract metadata from tables
+# Python package to extract metadata from tables
 
-Use this module to process tabular files in which each row represents an iRODS data object or collection
+Use this package to process tabular files in which each row represents an iRODS data object or collection
 and each column contains either an identifier or metadata to add to this item.
 It supports plain text files and Excel files, which could be stored locally or in iRODS itself.
 
-To get started, create a virtual environment with pip and install the dependencies described in the [requirements file](./requirements.txt):
+To get started, create a virtual environment with pip or uv and install the package:
 
 ```sh
+# with pip
 python -m venv venv
 source venv/bin/activate
-pip install -e .
+pip install mango-metadata-from-tables
 ```
 
-Now, you can run the script with the command `mango-metadata-from-tables`.  
+```sh
+# with uv
+uv init <my-project>
+uv add mango-metadata-from-tables
+```
+
+Now, you can run the script with the command `mango-metadata-from-tables`
+(or `uv run mango-metadata-from-tables`).
 
 
 ## Usage
@@ -47,8 +55,8 @@ data object or collection. Note that this `run` command could then also be used 
 with the same properties as the original one.
 
 ```sh
-mango-metadata-from-tables setup testdata/testdata.csv test-config.yaml --sep ";"
-mango-metadata-from-tables run testdata/testdata.csv --config test-config.yaml --dry-run
+mango-metadata-from-tables setup tests/testdata/testdata.csv test-config.yaml --sep ";"
+mango-metadata-from-tables run tests/testdata/testdata.csv --config test-config.yaml --dry-run
 ```
 
 ### A larger Excel file with multiple sheets
@@ -59,8 +67,8 @@ how the Excel should be parsed and record the answers in a YAML configuration fi
 Then, with the `run` command we parse the Excel and simulate adding the metadata.
 
 ```sh
-mango-metadata-from-tables setup testdata/bigger-testdata.xlsx bigger-test-config.yaml
-mango-metadata-from-tables run testdata/bigger-testdata.xlsx --config bigger-test-config.yaml --dry-run
+mango-metadata-from-tables setup tests/testdata/bigger-testdata.xlsx bigger-test-config.yaml
+mango-metadata-from-tables run tests/testdata/bigger-testdata.xlsx --config bigger-test-config.yaml --dry-run
 ```
 
 ## `setup`
@@ -84,7 +92,7 @@ with the `--sep` option, which has "," as a default. If a wrong separator is pro
 the parser finds a single column, it will warn you and give you the possibility to correct it.
 
 ```sh
-mango-metadata-from-tables setup testdata/testdata.csv test-output.yml --sep ";"
+mango-metadata-from-tables setup tests/testdata/testdata.csv test-output.yml --sep ";"
 ```
 
 If the file can be found and opened as a dataframe, the user will be prompted with questions
@@ -104,7 +112,7 @@ Given a path to a tabular file with metadata and a YAML with the settings to pre
 metadata can be added with the `run` command:
 
 ```sh
-mango-metadata-from-tables  run path_to_tabular --config path/to/config.yml
+mango-metadata-from-tables run path_to_tabular --config path/to/config.yml
 ```
 
 For testing purposes, it is possible to use
@@ -115,7 +123,7 @@ For the testdata, that is the icts zone in quality.
 
 
 ```sh
-mango-metadata-from-tables  run path_to_tabular --config path/to/config.yml --dry-run
+mango-metadata-from-tables run path_to_tabular --config path/to/config.yml --dry-run
 ```
 
 It is not necessary to rerun both `setup` and `run` for each tabular file:
