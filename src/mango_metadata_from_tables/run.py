@@ -32,14 +32,19 @@ def run(filename, config, dry_run=False):
     tabular_file = pathlib.Path(filename)
     if not tabular_file.exists():
         raise FileExistsError
-    try:
-        env_file = os.environ["IRODS_ENVIRONMENT_FILE"]
-    except KeyError:
-        env_file = os.path.expanduser("~/.irods/irods_environment.json")
+    if dry_run:
+        for _ in apply_metadata_from_table(tabular_file, config, dry_run):
+            continue
+    else:
+        try:
+            env_file = os.environ["IRODS_ENVIRONMENT_FILE"]
+        except KeyError:
+            env_file = os.path.expanduser("~/.irods/irods_environment.json")
 
-    ssl_settings = {}
-    with iRODSSession(irods_env_file=env_file, **ssl_settings) as session:
-        apply_metadata_from_table(tabular_file, config, dry_run, session)
+        ssl_settings = {}
+        with iRODSSession(irods_env_file=env_file, **ssl_settings) as session:
+            for _ in apply_metadata_from_table(tabular_file, config, dry_run, session):
+                continue
 
 
 def apply_metadata_from_table(
